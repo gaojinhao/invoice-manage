@@ -23,27 +23,27 @@
 - [x] 3.3 实现月份筛选与列表展示（getRecordsByMonth + HomeScreen 记录列表）
 - [x] 3.4 实现本月消费总额统计 + 仪表盘（getMonthlyTotal + getStatusCounts + 首页卡片）
 
-## Phase 4: 邮件服务
+## Phase 4: 邮件服务 ✅
 
-- [ ] 4.1 实现邮箱配置页
-- [ ] 4.2 实现 IMAP 收件
-- [ ] 4.3 实现发票自动匹配
-- [ ] 4.4 实现月度 ZIP 打包
-- [ ] 4.5 实现 SMTP 发送
+- [x] 4.1 实现邮箱配置页（email_config_screen.dart）
+- [x] 4.2 实现 IMAP 收件（email_service.dart _ImapClient，基于 Socket 完整实现）
+- [x] 4.3 实现发票自动匹配（invoice_matcher_service.dart，金额+商户+日期多策略打分）
+- [x] 4.4 实现月度 ZIP 打包（file_service.dart zipMonthRecords）
+- [x] 4.5 实现 SMTP 发送（email_service.dart sendEmail，支持 QQ/163/Outlook/Gmail）
 
-## Phase 5: 定时任务与通知
+## Phase 5: 定时任务与通知 ✅
 
-- [ ] 5.1 集成 WorkManager
-- [ ] 5.2 实现每日检查 + 通知
-- [ ] 5.3 实现每日邮箱自动下载
-- [ ] 5.4 实现月初打包发送
+- [x] 5.1 集成 WorkManager（scheduler_service.dart 注册+回调）
+- [x] 5.2 实现每日检查 + 通知（DailyCheckService + NotificationService）
+- [x] 5.3 实现每日邮箱自动下载（DailyCheckService._checkEmailInvoices）
+- [x] 5.4 实现月初打包发送（MonthlyPackService -> ZIP -> SMTP -> 归档）
 - [ ] 5.5 引导加入省电白名单
 
-## Phase 6: UI 界面
+## Phase 6: UI 界面 ✅
 
-- [ ] 6.1 首页仪表盘
-- [ ] 6.2 消费记录列表
-- [ ] 6.3 拍照/上传页
-- [ ] 6.4 记录详情页
-- [ ] 6.5 邮箱配置页
+- [x] 6.1 首页仪表盘（home_screen.dart 月度总额+状态统计卡片）
+- [x] 6.2 消费记录列表（home_screen.dart 月份切换+状态颜色标识）
+- [x] 6.3 拍照/上传页（camera_screen.dart 拍照→OCR→确认→保存）
+- [x] 6.4 记录详情页（record_detail_screen.dart 文件清单+补充入口）
+- [x] 6.5 邮箱配置页（email_config_screen.dart 授权码+测试连接）
 - [ ] 6.6 设置页
