@@ -145,6 +145,19 @@ class AppDatabase extends _$AppDatabase {
     return (delete(consumptionRecords)..where((t) => t.id.equals(id))).go();
   }
 
+  /// 获取近 N 个月的月度总额趋势
+  Future<List<({int year, int month, double total})>> getMonthlyTrend(
+      int monthsBack) async {
+    final now = DateTime.now();
+    final results = <({int year, int month, double total})>[];
+    for (var i = monthsBack - 1; i >= 0; i--) {
+      final target = DateTime(now.year, now.month - i, 1);
+      final total = await getMonthlyTotal(target.year, target.month);
+      results.add((year: target.year, month: target.month, total: total));
+    }
+    return results;
+  }
+
   /// 搜索消费记录（按商户名、金额、备注）
   Future<List<ConsumptionRecord>> searchRecords(String query) async {
     if (query.trim().isEmpty) return [];

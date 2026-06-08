@@ -11,6 +11,7 @@ import 'record_detail_screen.dart';
 import 'email_config_screen.dart';
 import 'settings_screen.dart';
 import 'search_screen.dart';
+import 'charts_screen.dart';
 
 /// 首页 — 仪表盘 + 消费记录列表
 class HomeScreen extends StatefulWidget {
@@ -101,6 +102,14 @@ class _HomeScreenState extends State<HomeScreen> {
               delegate: RecordSearchDelegate(),
             ),
             tooltip: '搜索',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChartsScreen()),
+            ),
+            tooltip: '统计',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
