@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -229,6 +230,9 @@ class _CameraScreenState extends State<CameraScreen> {
                 suffixText: '元',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -240,6 +244,20 @@ class _CameraScreenState extends State<CameraScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.calendar_today),
               ),
+              readOnly: true,
+              onTap: () async {
+                final now = DateTime.now();
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime(now.year, now.month, now.day),
+                  firstDate: DateTime(2020),
+                  lastDate: now,
+                  locale: const Locale('zh'),
+                );
+                if (picked != null) {
+                  _dateCtrl.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                }
+              },
             ),
             const SizedBox(height: 12),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'database/app_database.dart';
@@ -32,6 +33,16 @@ class InvoiceApp extends StatelessWidget {
       child: MaterialApp(
         title: '报销文件管理',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: [
+          const Locale('zh', 'CN'),
+          const Locale('en', 'US'),
+        ],
+        locale: const Locale('zh', 'CN'),
         theme: ThemeData(
           colorSchemeSeed: Colors.indigo,
           useMaterial3: true,
