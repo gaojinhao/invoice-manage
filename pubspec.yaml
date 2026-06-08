@@ -1,0 +1,62 @@
+name: invoice_app
+description: 个人报销文件管理 App — 结账单/支付记录/发票三证自动管理
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 本地数据库
+  drift: ^2.24.0
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.0
+
+  # OCR 识别
+  google_mlkit_text_recognition: ^0.14.0
+
+  # 相机/相册
+  image_picker: ^1.1.0
+
+  # 本地通知
+  flutter_local_notifications: ^18.0.0
+
+  # 后台任务
+  workmanager: ^0.5.0
+
+  # 邮件
+  mailer: ^6.4.0
+
+  # ZIP 打包
+  archive: ^4.0.0
+
+  # 图表
+  fl_chart: ^0.70.0
+
+  # UI
+  intl: ^0.20.0
+  cupertino_icons: ^1.0.8
+
+  # 安全存储（邮箱授权码）
+  flutter_secure_storage: ^9.2.0
+
+  # 状态管理
+  provider: ^6.1.0
+
+  # 文件管理
+  permission_handler: ^11.3.0
+  open_file: ^3.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.24.0
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets: []

@@ -1,49 +1,32 @@
 # Flutter
+build/
 .dart_tool/
 .packages
-build/
-*.iml
-.flutter-plugins
-.flutter-plugins-dependencies
-*.lock
+.pub/
+pubspec.lock
+
+# Generated
+*.g.dart
+*.freezed.dart
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
+*.iml
 
-# macOS
+# OS
 .DS_Store
-
-# Dart
-.dart_tool/
-.pub-cache/
-.packages
-pubspec.lock
+Thumbs.db
 
 # Android
 android/.gradle/
 android/app/build/
 android/local.properties
-android/key.properties
-android/app/google-services.json
 
 # iOS
 ios/Pods/
 ios/.symlinks/
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-ios/Runner.xcworkspace/xcuserdata/
-ios/Flutter/AppFrameworkInfo.plist
 
-# Testing
-coverage/
-test_reports/
-
-# Misc
-*.log
-.env
-.env.local
-.env.production
+# Flutter
+.flutter-plugins
+.flutter-plugins-dependencies
