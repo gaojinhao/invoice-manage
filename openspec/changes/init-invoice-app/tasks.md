@@ -9,19 +9,19 @@
 - [x] 1.3 搭建项目目录结构（models/services/screens/widgets）
 - [x] 1.4 创建数据模型 + 数据库表（drift ORM）
 
-## Phase 2: OCR 识别
+## Phase 2: OCR 识别 ✅
 
-- [ ] 2.1 实现拍照/相册选择功能
-- [ ] 2.2 集成 Google ML Kit 文字识别
-- [ ] 2.3 解析识别结果（金额、日期、商户名）
-- [ ] 2.4 实现识别结果预览与手动修正页
+- [x] 2.1 实现拍照/相册选择功能（camera_screen.dart）
+- [x] 2.2 集成 Google ML Kit 文字识别（ocr_service.dart）
+- [x] 2.3 解析识别结果：金额、日期、商户名（ocr_service.dart _extractMerchant/Amount/Date）
+- [x] 2.4 实现识别结果预览与手动修正页（camera_screen.dart OCR预览 + 编辑表单）
 
-## Phase 3: 消费记录管理
+## Phase 3: 消费记录管理 ✅
 
-- [ ] 3.1 实现消费记录增删改查
-- [ ] 3.2 实现状态流转
-- [ ] 3.3 实现月份筛选与列表展示
-- [ ] 3.4 实现本月消费总额统计 + 仪表盘
+- [x] 3.1 实现消费记录增删改查（app_database.dart createRecord / deleteRecord）
+- [x] 3.2 实现状态流转（updatePaymentImage → pendingInvoice → updateInvoicePdf → complete → markArchived）
+- [x] 3.3 实现月份筛选与列表展示（getRecordsByMonth + HomeScreen 记录列表）
+- [x] 3.4 实现本月消费总额统计 + 仪表盘（getMonthlyTotal + getStatusCounts + 首页卡片）
 
 ## Phase 4: 邮件服务
 
