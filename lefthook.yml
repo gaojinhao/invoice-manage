@@ -1,0 +1,39 @@
+# app-invoice — Lefthook 预提交钩子
+# 安装: brew install lefthook
+# 或者: npm install -g @evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    dart-format:
+      glob: "*.dart"
+      run: dart format --set-exit-if-changed {staged_files}
+      stage_fixed: true
+
+    dart-analyze:
+      glob: "*.dart"
+      run: dart analyze {staged_files}
+
+commit-msg:
+  commands:
+    commit-lint:
+      run: |
+        echo "检查提交信息格式..."
+        echo "{1}" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .{1,72}$' || {
+          echo ""
+          echo "❌ 提交信息格式不正确"
+          echo "格式: <type>(<scope>): <subject>"
+          echo "  type: feat|fix|docs|style|refactor|perf|test|chore|ci|build"
+          echo "  scope: 可选, 如 ocr, email, ui, db"
+          echo "  正文(可选): 空一行后写详细说明"
+          echo ""
+          echo "示例:"
+          echo "  feat(ocr): 添加小票OCR识别功能"
+          echo "  fix(email): 修复IMAP连接超时问题"
+          echo "  refactor(db): 重构消费记录查询"
+          echo ""
+          exit 1
+        }
+
+# 设置:
+# cd app-invoice && lefthook install
