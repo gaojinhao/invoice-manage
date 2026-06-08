@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/email_config_screen.dart';
 import 'services/notification_service.dart';
 import 'services/scheduler_service.dart';
+import 'services/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,12 @@ void main() async {
   await scheduler.scheduleDailyCheck();
   await scheduler.scheduleMonthlyPack();
 
-  runApp(const InvoiceApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const InvoiceApp(),
+    ),
+  );
 }
 
 class InvoiceApp extends StatelessWidget {
@@ -29,10 +35,12 @@ class InvoiceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
     return DatabaseProvider(
       child: MaterialApp(
         title: '报销文件管理',
         debugShowCheckedModeBanner: false,
+        themeMode: themeProvider.mode,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -47,6 +55,11 @@ class InvoiceApp extends StatelessWidget {
           colorSchemeSeed: Colors.indigo,
           useMaterial3: true,
           brightness: Brightness.light,
+        ),
+        darkTheme: ThemeData(
+          colorSchemeSeed: Colors.indigo,
+          useMaterial3: true,
+          brightness: Brightness.dark,
         ),
         home: const HomeScreen(),
       ),

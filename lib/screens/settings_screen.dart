@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
 import '../services/export_service.dart';
+import '../services/theme_provider.dart';
 import 'email_config_screen.dart';
 
 /// 设置页
@@ -125,6 +126,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
         children: [
+          // 显示设置
+          _sectionHeader('显示', theme),
+          Consumer<ThemeProvider>(
+            builder: (_, themeProvider, __) => SwitchListTile(
+              secondary: Icon(themeProvider.isDark ? Icons.dark_mode : Icons.light_mode),
+              title: const Text('深色模式'),
+              subtitle: Text(themeProvider.isDark ? '已开启' : '已关闭'),
+              value: themeProvider.isDark,
+              onChanged: (_) => themeProvider.toggle(),
+            ),
+          ),
+          const Divider(),
+
           // 邮箱配置
           _sectionHeader('邮箱', theme),
           ListTile(
