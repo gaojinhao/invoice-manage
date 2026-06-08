@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -443,21 +444,4 @@ class EmailService {
   }
 }
 
-class Completer<T> {
-  T? _value;
-  Function? _resolve;
-  bool _completed = false;
 
-  Completer();
-
-  void complete(T value) {
-    _value = value;
-    _completed = true;
-    if (_resolve != null) _resolve!();
-  }
-
-  Future<T> get future {
-    if (_completed) return Future.value(_value);
-    return Future(() => null).then((_) => _value as T);
-  }
-}
