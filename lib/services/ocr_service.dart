@@ -42,9 +42,9 @@ class OcrService {
         return OcrResult(rawText: '', confidence: 0);
       }
 
-      final merchant = _extractMerchant(text);
-      final amount = _extractAmount(text);
-      final date = _extractDate(text);
+      final merchant = extractMerchant(text);
+      final amount = extractAmount(text);
+      final date = extractDate(text);
 
       return OcrResult(
         merchant: merchant,
@@ -59,7 +59,8 @@ class OcrService {
   }
 
   /// 从 OCR 文本中提取商户名（常见中文小票模式）
-  String? _extractMerchant(String text) {
+  /// 包内公开以支持单元测试
+  String? extractMerchant(String text) {
     final patterns = [
       RegExp(r'(?:商户|商家|店名|名称)[：:\s]*([^\n]{2,15})'),
       RegExp(r'^([^\n]{2,10}(?:超市|便利店|餐厅|酒店|药店|商店|专卖店|公司|小店|食堂|饭馆|饭店|酒楼))'),
@@ -82,7 +83,7 @@ class OcrService {
   }
 
   /// 从 OCR 文本中提取金额
-  double? _extractAmount(String text) {
+  double? extractAmount(String text) {
     final patterns = [
       RegExp(r'(?:合计|总计|实收|应付|支付|金额|¥|￥)\s*[：:\s]*\s*(\d+\.?\d*)'),
       RegExp(r'(?:合计|总计|实收)[：:\s]*[¥￥]?\s*(\d+\.?\d*)'),
@@ -101,7 +102,7 @@ class OcrService {
   }
 
   /// 从 OCR 文本中提取日期
-  DateTime? _extractDate(String text) {
+  DateTime? extractDate(String text) {
     final patterns = [
       RegExp(r'(\d{4})[-年/](\d{1,2})[-月/](\d{1,2})'),
       RegExp(r'(\d{4})(\d{2})(\d{2})'),

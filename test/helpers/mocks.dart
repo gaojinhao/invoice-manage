@@ -68,14 +68,14 @@ DownloadedInvoice makeInvoice({
   String fileName = 'invoice.pdf',
   String localPath = '/tmp/invoice.pdf',
   String subject = '电子发票_测试超市',
-  String sender = 'invoice@company.com',
   DateTime? date,
+  double? matchedAmount,
 }) {
   return DownloadedInvoice(
     fileName: fileName,
     localPath: localPath,
     subject: subject,
     date: date ?? DateTime(2026, 6, 8),
-    sender: sender,
+    matchedAmount: matchedAmount,
   );
 }
