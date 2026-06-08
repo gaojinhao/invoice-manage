@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
+import '../services/export_service.dart';
 import 'email_config_screen.dart';
 
 /// 设置页
@@ -37,6 +38,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _emailConfigured = email != null && email.isNotEmpty;
       _totalRecords = allRecords.length;
     });
+  }
+
+  Future<void> _exportCsv() async {
+    try {
+      final db = context.read<AppDatabase>();
+      final exportService = ExportService(db);
+      final path = await exportService.exportCsv();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('CSV 已导出: $path'),
+            action: SnackBarAction(
+              label: '分享',
+              onPressed: () => exportService.shareFile(path),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导出失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _backupDatabase() async {
+    try {
+      final db = context.read<AppDatabase>();
+      final exportService = ExportService(db);
+      final path = await exportService.backupDatabase();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('数据库已备份: $path'),
+            action: SnackBarAction(
+              label: '分享',
+              onPressed: () => exportService.shareFile(path),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('备份失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _clearAllData() async {
@@ -94,6 +145,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.storage),
             title: const Text('数据库'),
             subtitle: Text('$_totalRecords 条待处理记录'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_download),
+            title: const Text('导出为 CSV'),
+            subtitle: const Text('消费记录可导入 Excel'),
+            onTap: _exportCsv,
+          ),
+          ListTile(
+            leading: const Icon(Icons.backup),
+            title: const Text('备份数据库'),
+            subtitle: const Text('备份到 exports 文件夹'),
+            onTap: _backupDatabase,
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),

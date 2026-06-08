@@ -145,6 +145,13 @@ class AppDatabase extends _$AppDatabase {
     return (delete(consumptionRecords)..where((t) => t.id.equals(id))).go();
   }
 
+  /// 获取所有记录（按日期倒序）
+  Future<List<ConsumptionRecord>> getAllRecords() async {
+    return (select(consumptionRecords)
+      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
+    ).get();
+  }
+
   /// 获取近 N 个月的月度总额趋势
   Future<List<({int year, int month, double total})>> getMonthlyTrend(
       int monthsBack) async {

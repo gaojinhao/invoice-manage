@@ -52,6 +52,9 @@ dependencies:
   permission_handler: ^11.3.0
   open_file: ^3.5.0
 
+  # 分享（导出文件用）
+  share_plus: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
