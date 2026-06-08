@@ -1,6 +1,12 @@
 import 'package:workmanager/workmanager.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'check_pack_service.dart';
+import 'email_service.dart';
+import 'file_service.dart';
 import 'notification_service.dart';
+import '../database/app_database.dart';
 
 /// 后台定时任务名称常量
 class SchedulerTasks {
@@ -8,9 +14,9 @@ class SchedulerTasks {
   static const monthlyPack = 'monthlyPack';
 }
 
-/// 定时任务调度服务
+/// 定时任务调度服务（前台注册用）
 class SchedulerService {
-  /// 注册定时任务
+  /// 注册所有定时任务
   Future<void> initialize() async {
     await Workmanager().initialize(
       _callbackDispatcher,
@@ -46,21 +52,16 @@ class SchedulerService {
     );
   }
 
-  /// 计算到下一个指定时间的延迟
   Duration _nextRunAt(int hour, int minute) {
     final now = DateTime.now();
     var next = DateTime(now.year, now.month, now.day, hour, minute);
-    if (next.isBefore(now)) {
-      next = next.add(const Duration(days: 1));
-    }
+    if (next.isBefore(now)) next = next.add(const Duration(days: 1));
     return next.difference(now);
   }
 
-  /// 计算到下个月 1 号的延迟
   Duration _nextMonthlyRun() {
     final now = DateTime.now();
     var nextMonth = DateTime(now.year, now.month + 1, 1, 8, 0);
-    // 如果本月还没到 1 号
     if (now.day == 1 && now.hour < 8) {
       nextMonth = DateTime(now.year, now.month, 1, 8, 0);
     }
@@ -68,24 +69,96 @@ class SchedulerService {
   }
 }
 
-/// WorkManager 回调调度器（顶级函数）
+/// WorkManager 回调调度器（顶级函数，后台 isolate 运行）
 @pragma('vm:entry-point')
 void _callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    final notifier = NotificationService();
-
-    switch (task) {
-      case SchedulerTasks.dailyCheck:
-        // 每日检查：由主应用在启动时同步执行
-        // 后台只发通知提醒
-        break;
-
-      case SchedulerTasks.monthlyPack:
-        // 月初打包：实际逻辑在 App 启动时处理
-        // 此处仅为兜底提醒
-        break;
+    try {
+      switch (task) {
+        case SchedulerTasks.dailyCheck:
+          await _runDailyCheck();
+          break;
+        case SchedulerTasks.monthlyPack:
+          await _runMonthlyPack();
+          break;
+      }
+      return Future.value(true);
+    } catch (_) {
+      return Future.value(false);
     }
-
-    return Future.value(true);
   });
+}
+
+/// 执行每日检查（在后台 isolate 中运行）
+Future<void> _runDailyCheck() async {
+  final db = AppDatabase();
+  final notifier = NotificationService();
+  final fileService = FileService();
+  final emailService = EmailService();
+
+  // 从安全存储加载邮箱配置
+  try {
+    final storage = FlutterSecureStorage();
+    final email = await storage.read(key: 'email_addr') ?? '';
+    final password = await storage.read(key: 'email_pass') ?? '';
+    if (email.isNotEmpty && password.isNotEmpty) {
+      emailService.configure(EmailConfig(
+        email: email,
+        password: password,
+        imapServer: emailService.getImapServer(email),
+      ));
+    }
+  } catch (_) {
+    // 后台 isolate 可能无法访问 secure storage，静默跳过
+  }
+
+  await notifier.initialize();
+
+  final service = DailyCheckService(
+    db: db,
+    emailService: emailService,
+    notifier: notifier,
+    fileService: fileService,
+  );
+
+  await service.run();
+  await db.close();
+}
+
+/// 执行月初打包
+Future<void> _runMonthlyPack() async {
+  final db = AppDatabase();
+  final notifier = NotificationService();
+  final fileService = FileService();
+  final emailService = EmailService();
+
+  // 从安全存储加载邮箱配置
+  try {
+    final storage = FlutterSecureStorage();
+    final email = await storage.read(key: 'email_addr') ?? '';
+    final password = await storage.read(key: 'email_pass') ?? '';
+    final sendTo = await storage.read(key: 'send_to') ?? email;
+    if (email.isNotEmpty && password.isNotEmpty) {
+      emailService.configure(EmailConfig(
+        email: email,
+        password: password,
+        imapServer: emailService.getImapServer(email),
+        sendTo: sendTo,
+      ));
+    }
+  } catch (_) {
+    // 静默跳过
+  }
+
+  await notifier.initialize();
+
+  final service = MonthlyPackService(
+    db: db,
+    emailService: emailService,
+    notifier: notifier,
+    fileService: fileService,
+  );
+
+  await service.run();
+  await db.close();
 }
