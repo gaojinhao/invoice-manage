@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
@@ -242,10 +243,6 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
       );
       return;
     }
-    // 打开文件（需 open_file 包）
-    // OpenFile.open(path);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('文件路径: $path')),
-    );
+    OpenFile.open(path);
   }
 }
