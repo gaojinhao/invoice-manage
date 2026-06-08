@@ -55,8 +55,11 @@ class ConsumptionRecords extends Table {
 }
 
 String _uuid() {
-  // 简单 UUID v4 生成（无外部依赖）
-  final now = DateTime.now().millisecondsSinceEpoch;
-  final r = (now ^ (now << 21) ^ (now >> 15)) & 0xFFFFFFFFFFFFFFFF;
-  return '${r.toRadixString(16).padLeft(16, '0')}';
+  // UUID v4 生成（无外部依赖）：48位时间戳 + 16位计数器 + 64位随机数 = 128位
+  final now = DateTime.now().microsecondsSinceEpoch;
+  _uuidCounter = (_uuidCounter + 1) & 0xFFFF;
+  final random = (now ^ (now << 21) ^ (now >> 15)) & 0xFFFFFFFFFFFFFFFF;
+  final high = (now & 0xFFFFFFFFFFFF) << 16 | _uuidCounter;
+  return '${high.toRadixString(16).padLeft(16, '0')}${random.toRadixString(16).padLeft(16, '0')}';
 }
+int _uuidCounter = 0;

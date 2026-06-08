@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -33,9 +34,7 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final now = DateTime.now();
     final month = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
-    final id = ConsumptionRecords.$id.clientDefault();
     final record = ConsumptionRecordsCompanion.insert(
-      id: Value(id),
       date: date,
       merchant: merchant,
       amount: amount,
@@ -47,7 +46,14 @@ class AppDatabase extends _$AppDatabase {
       updatedAt: now,
     );
     await into(consumptionRecords).insert(record);
-    return (select(consumptionRecords)..where((t) => t.id.equals(id))).getSingle();
+    // 返回刚创建的记录（按时间最近的一条匹配）
+    return (select(consumptionRecords)
+      ..where((t) => t.merchant.equals(merchant))
+      ..where((t) => t.date.equals(date))
+      ..where((t) => t.amount.equals(amount))
+      ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)])
+      ..limit(1)
+    ).getSingle();
   }
 
   /// 查询某月的消费记录
