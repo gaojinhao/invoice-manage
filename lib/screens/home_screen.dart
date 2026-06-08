@@ -10,6 +10,7 @@ import 'camera_screen.dart';
 import 'record_detail_screen.dart';
 import 'email_config_screen.dart';
 import 'settings_screen.dart';
+import 'search_screen.dart';
 
 /// 首页 — 仪表盘 + 消费记录列表
 class HomeScreen extends StatefulWidget {
@@ -95,8 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: _dailyCheck,
-            tooltip: '每日检查',
+            onPressed: () => showSearch<ConsumptionRecord?>(
+              context: context,
+              delegate: RecordSearchDelegate(),
+            ),
+            tooltip: '搜索',
           ),
           IconButton(
             icon: const Icon(Icons.settings),

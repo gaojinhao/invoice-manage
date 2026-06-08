@@ -318,6 +318,22 @@ class EmailService {
 
   EmailConfig? get config => _config;
 
+  /// 保存邮箱配置（含安全存储）
+  /// 供邮箱配置页面调用
+  Future<void> saveConfig({
+    required String email,
+    required String password,
+    required String imapServer,
+    String? sendTo,
+  }) async {
+    configure(EmailConfig(
+      email: email,
+      password: password,
+      imapServer: imapServer,
+      sendTo: sendTo,
+    ));
+  }
+
   /// 验证邮箱连接（通过 SMTP）
   Future<bool> verifyConnection(String email, String password, String imapServer, int imapPort) async {
     try {

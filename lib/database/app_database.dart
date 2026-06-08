@@ -144,6 +144,21 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteRecord(String id) async {
     return (delete(consumptionRecords)..where((t) => t.id.equals(id))).go();
   }
+
+  /// 搜索消费记录（按商户名、金额、备注）
+  Future<List<ConsumptionRecord>> searchRecords(String query) async {
+    if (query.trim().isEmpty) return [];
+    final q = query.trim();
+    // 尝试解析数字
+    final amount = double.tryParse(q);
+    return (select(consumptionRecords)
+      ..where((t) =>
+          t.merchant.contains(q) ||
+          t.notes.contains(q) ||
+          (amount != null ? t.amount.equals(amount) : const Constant(false)))
+      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
+    ).get();
+  }
 }
 
 LazyDatabase _openConnection() {

@@ -162,5 +162,34 @@ void main() {
       final total = await mockDb.getMonthlyTotal(2026, 6);
       expect(total, 456.0);
     });
+
+    test('searchRecords 按商户名搜索', () async {
+      when(() => mockDb.searchRecords('华联'))
+          .thenAnswer((_) async => [
+            makeRecord(id: 'r1', merchant: '华联超市'),
+          ]);
+
+      final results = await mockDb.searchRecords('华联');
+      expect(results.length, 1);
+      expect(results.first.merchant, '华联超市');
+    });
+
+    test('searchRecords 按金额搜索', () async {
+      when(() => mockDb.searchRecords('128'))
+          .thenAnswer((_) async => [
+            makeRecord(id: 'r2', amount: 128.0),
+          ]);
+
+      final results = await mockDb.searchRecords('128');
+      expect(results.length, 1);
+    });
+
+    test('searchRecords 空关键词返回空列表', () async {
+      when(() => mockDb.searchRecords(''))
+          .thenAnswer((_) async => []);
+
+      final results = await mockDb.searchRecords('');
+      expect(results, isEmpty);
+    });
   });
 }
