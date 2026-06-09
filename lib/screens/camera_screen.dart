@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
@@ -41,6 +42,15 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _takePhoto() async {
+    final status = await Permission.camera.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('需要相机权限才能拍照')),
+        );
+      }
+      return;
+    }
     final file = await _picker.pickImage(source: ImageSource.camera, maxWidth: 2048);
     if (file == null) return;
     setState(() => _image = File(file.path));
@@ -48,6 +58,17 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _pickFromGallery() async {
+    // Android 13+ uses granular media permissions
+    final photos = await Permission.photos.request();
+    final storage = await Permission.storage.request();
+    if (!photos.isGranted && !storage.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('需要存储权限才能选择照片')),
+        );
+      }
+      return;
+    }
     final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
     if (file == null) return;
     setState(() => _image = File(file.path));
