@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/database/app_database.dart';
@@ -10,6 +12,8 @@ import 'package:invoice_app/services/notification_service.dart';
 import '../helpers/mocks.dart';
 
 void main() {
+  registerFallbackValue(File(''));
+
   late MockAppDatabase mockDb;
   late MockFileService mockFileService;
   late MockNotificationService mockNotifier;
@@ -159,7 +163,7 @@ void main() {
       final result = await service.runMatching(invoices);
 
       expect(result, 0);
-      verify(() => mockDb.updateInvoicePdf(any(), any()), never).called(0);
+      verifyNever(() => mockDb.updateInvoicePdf(any(), any()));
     });
   });
 }

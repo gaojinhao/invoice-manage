@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invoice_app/services/ocr_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('OcrResult', () {
     test('isSuccessful — 全为空时返回 false', () {
       final result = OcrResult(rawText: '');
