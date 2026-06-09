@@ -37,7 +37,7 @@
 - [x] 5.2 实现每日检查 + 通知（DailyCheckService + NotificationService）
 - [x] 5.3 实现每日邮箱自动下载（DailyCheckService._checkEmailInvoices）
 - [x] 5.4 实现月初打包发送（MonthlyPackService -> ZIP -> SMTP -> 归档）
-- [ ] 5.5 引导加入省电白名单
+- [x] 5.5 引导加入省电白名单（settings_screen.dart 各品牌指南弹窗）
 
 ## Phase 6: UI 界面 ✅
 
@@ -46,4 +46,12 @@
 - [x] 6.3 拍照/上传页（camera_screen.dart 拍照→OCR→确认→保存）
 - [x] 6.4 记录详情页（record_detail_screen.dart 文件清单+补充入口）
 - [x] 6.5 邮箱配置页（email_config_screen.dart 授权码+测试连接）
-- [ ] 6.6 设置页
+- [x] 6.6 设置页（settings_screen.dart 含深色模式+省电白名单+数据库管理+导出）
+
+## Phase 7: 平台构建 & 可运行 🟡
+
+- [x] 7.1 跑 `flutter create .` 重新生成 Android 平台脚手架（build.gradle / settings.gradle / gradle-wrapper 等）
+- [x] 7.2 恢复 AndroidManifest.xml 中的权限和 WorkManager 配置
+- [ ] 7.3 跑 `flutter build apk --debug` 验证构建成功
+- [ ] 7.4 跑 `flutter analyze` 确保无新增错误
+- [ ] 7.5 真机运行验证全流程
