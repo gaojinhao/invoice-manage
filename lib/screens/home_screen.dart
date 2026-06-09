@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../database/app_database.dart';
 import '../database/tables.dart';
 import '../services/file_service.dart';
+import '../services/export_service.dart';
 import '../services/notification_service.dart';
 import 'camera_screen.dart';
 import 'record_detail_screen.dart';
@@ -141,6 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverToBoxAdapter(child: _buildHeader(theme)),
                   // 状态统计卡片
                   SliverToBoxAdapter(child: _buildStatusCards(theme)),
+                  // 操作按钮栏
+                  SliverToBoxAdapter(child: _buildActionBar(theme)),
                   // 记录列表标题
                   SliverToBoxAdapter(
                     child: Padding(
@@ -230,6 +234,150 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  /// 操作按钮栏：打包导出
+  Widget _buildActionBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _packAndExport,
+              icon: const Icon(Icons.folder_zip, size: 20),
+              label: const Text('打包导出当前月所有记录'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 打包当前月记录为 ZIP → 选择下载或发送到邮箱
+  Future<void> _packAndExport() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final fileService = FileService();
+
+    scaffold.showSnackBar(
+      const SnackBar(
+        content: Text('正在打包，请稍候...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      final zipPath = await fileService.zipMonthRecords(
+        _currentMonth.year,
+        _currentMonth.month,
+      );
+
+      if (zipPath == null) {
+        if (mounted) {
+          scaffold.showSnackBar(
+            const SnackBar(
+              content: Text('当前月暂无记录可打包'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // 弹出操作选择
+      final action = await showModalBottomSheet<String>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  DateFormat('yyyy年M月').format(_currentMonth),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('下载 / 分享文件'),
+                subtitle: const Text('保存到本地或通过微信/QQ 发送'),
+                onTap: () => Navigator.pop(ctx, 'share'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.email),
+                title: const Text('发送到邮箱'),
+                subtitle: const Text('需要先配置邮箱'),
+                onTap: () => Navigator.pop(ctx, 'email'),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      );
+
+      if (action == null || !mounted) return;
+
+      if (action == 'share') {
+        final exportService = ExportService(context.read<AppDatabase>());
+        await exportService.shareFile(zipPath);
+      } else if (action == 'email') {
+        // 检查邮箱是否已配置
+        final storage = const FlutterSecureStorage();
+        final email = await storage.read(key: 'email_addr');
+        if (email == null || email.isEmpty) {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('未配置邮箱'),
+              content: const Text('请先在设置中配置邮箱，即可将打包文件自动发送。'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('去配置'),
+                ),
+              ],
+            ),
+          );
+          if (confirm == true && mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EmailConfigScreen()),
+            );
+          }
+        } else {
+          // 邮箱已配置，直接发送
+          scaffold.showSnackBar(
+            const SnackBar(
+              content: Text('邮箱发送功能即将实现（当前可通过分享手动发送）'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          // 先分享文件
+          final exportService = ExportService(context.read<AppDatabase>());
+          await exportService.shareFile(zipPath);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text('打包失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _statusCard(String label, int count, Color color, ThemeData theme) {
