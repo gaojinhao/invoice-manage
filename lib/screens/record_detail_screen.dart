@@ -9,9 +9,8 @@ import 'package:provider/provider.dart';
 import '../database/app_database.dart';
 import '../database/tables.dart';
 import '../services/file_service.dart';
-import 'camera_screen.dart';
 
-/// 消费记录详情页
+/// 消费记录详情页 — 三证文件管理
 class RecordDetailScreen extends StatefulWidget {
   final ConsumptionRecord record;
 
@@ -31,61 +30,75 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     _record = widget.record;
   }
 
-  Future<void> _uploadPaymentImage() async {
+  /// 上传/替换结账单
+  Future<void> _uploadReceipt() async {
     final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
     if (file == null) return;
 
     final db = context.read<AppDatabase>();
     final fileService = FileService();
-
     try {
-      final savedPath = await fileService.savePaymentImage(
-        File(file.path),
-        _record.date,
-        _record.merchant,
+      final savedPath = await fileService.saveReceiptImage(
+        File(file.path), _record.date, _record.merchant,
       );
-      await db.updatePaymentImage(_record.id, savedPath);
+      await db.updateReceiptImage(_record.id, savedPath);
       await _refreshRecord();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('支付记录已上传 ✓')),
-        );
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('上传失败: $e')),
-        );
-      }
+      _showError('上传失败: $e');
     }
   }
 
-  Future<void> _uploadInvoiceFromFile() async {
+  /// 上传/替换支付记录
+  Future<void> _uploadPayment() async {
     final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
     if (file == null) return;
 
     final db = context.read<AppDatabase>();
     final fileService = FileService();
-
     try {
+      final savedPath = await fileService.savePaymentImage(
+        File(file.path), _record.date, _record.merchant,
+      );
+      await db.updatePaymentImage(_record.id, savedPath);
+      await _refreshRecord();
+    } catch (e) {
+      _showError('上传失败: $e');
+    }
+  }
+
+  /// 上传/替换发票
+  Future<void> _uploadInvoice() async {
+    final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
+    if (file == null) return;
+
+    final db = context.read<AppDatabase>();
+    final fileService = FileService();
+    try {
+      // 用图片方式保存发票（也可用 PDF，但用户拍照最方便）
       final savedPath = await fileService.saveInvoicePdf(
-        File(file.path),
-        _record.date,
-        _record.merchant,
+        File(file.path), _record.date, _record.merchant,
       );
       await db.updateInvoicePdf(_record.id, savedPath);
       await _refreshRecord();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('发票已上传 ✓')),
-        );
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('上传失败: $e')),
-        );
-      }
+      _showError('上传失败: $e');
+    }
+  }
+
+  Future<void> _refreshRecord() async {
+    final db = context.read<AppDatabase>();
+    final records = await db.getRecordsByMonth(_record.date.year, _record.date.month);
+    final updated = records.where((r) => r.id == _record.id).firstOrNull;
+    if (updated != null) {
+      setState(() => _record = updated);
+    }
+  }
+
+  void _showError(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -111,30 +124,9 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     }
   }
 
-  Future<void> _refreshRecord() async {
-    final db = context.read<AppDatabase>();
-    final records = await db.getRecordsByMonth(_record.date.year, _record.date.month);
-    final updated = records.where((r) => r.id == _record.id).firstOrNull;
-    if (updated != null) {
-      setState(() => _record = updated);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusLabels = {
-      RecordStatus.pendingPayment: '待补支付记录',
-      RecordStatus.pendingInvoice: '待开发票',
-      RecordStatus.complete: '三证齐全',
-      RecordStatus.archived: '已归档',
-    };
-    final statusColors = {
-      RecordStatus.pendingPayment: Colors.orange,
-      RecordStatus.pendingInvoice: Colors.blue,
-      RecordStatus.complete: Colors.green,
-      RecordStatus.archived: Colors.grey,
-    };
 
     return Scaffold(
       appBar: AppBar(
@@ -146,189 +138,247 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
-          // 基本信息卡片
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _record.merchant,
-                          style: theme.textTheme.titleLarge,
-                        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 基本信息
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _record.merchant,
+                            style: theme.textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('yyyy-MM-dd').format(_record.date),
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                          ),
+                        ],
                       ),
-                      Chip(
-                        label: Text(
-                          statusLabels[_record.status] ?? '未知',
-                          style: TextStyle(color: statusColors[_record.status]),
-                        ),
-                        backgroundColor: statusColors[_record.status]?.withAlpha(20),
+                    ),
+                    Text(
+                      '¥${_record.amount.toStringAsFixed(2)}',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _infoRow(Icons.calendar_today, '日期', DateFormat('yyyy-MM-dd').format(_record.date)),
-                  _infoRow(Icons.monetization_on, '金额', '¥${_record.amount.toStringAsFixed(2)}'),
-                  if (_record.notes != null && _record.notes!.isNotEmpty)
-                    _infoRow(Icons.notes, '备注', _record.notes!),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 24),
 
-          const SizedBox(height: 24),
+            // 三证区域
+            Text('文件管理', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
 
-          // 文件三证状态
-          Text('文件清单', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+            // 1. 结账单
+            _buildFileSection(
+              '结账单',
+              _record.receiptImg,
+              Icons.receipt_long,
+              Colors.indigo,
+              _uploadReceipt,
+            ),
+            const SizedBox(height: 12),
 
-          _buildFileCard(
-            '结账单',
-            _record.receiptImg,
-            Icons.receipt_long,
-            Colors.indigo,
-            '拍照上传结账单',
-            () async {
-              final created = await Navigator.push<bool>(
-                context,
-                MaterialPageRoute(builder: (_) => const CameraScreen()),
-              );
-              if (created == true) await _refreshRecord();
-            },
+            // 2. 支付记录
+            _buildFileSection(
+              '支付记录',
+              _record.paymentImg,
+              Icons.payment,
+              Colors.orange,
+              _uploadPayment,
+            ),
+            const SizedBox(height: 12),
+
+            // 3. 发票
+            _buildFileSection(
+              '发票',
+              _record.invoicePdf,
+              Icons.description,
+              Colors.green,
+              _uploadInvoice,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileSection(
+    String label,
+    String? filePath,
+    IconData icon,
+    Color color,
+    VoidCallback onUpload,
+  ) {
+    final exists = filePath != null;
+    final file = exists ? File(filePath) : null;
+    final isImage = exists && _isImageFile(filePath);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标签行
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                const Spacer(),
+                if (exists)
+                  IconButton(
+                    icon: const Icon(Icons.visibility, size: 20),
+                    tooltip: '查看文件',
+                    onPressed: () => _viewFile(filePath),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
 
-          _buildFileCard(
-            '支付记录截图',
-            _record.paymentImg,
-            Icons.payment,
-            Colors.orange,
-            '从相册选择支付截图',
-            _uploadPaymentImage,
-          ),
-          const SizedBox(height: 8),
-
-          _buildFileCard(
-            '发票',
-            _record.invoicePdf,
-            Icons.description,
-            Colors.green,
-            '上传发票照片/PDF',
-            _uploadInvoiceFromFile,
-          ),
-
-          const SizedBox(height: 24),
-
-          // 说明文字
-          Card(
-            color: theme.colorScheme.surfaceContainerHighest.withAlpha(80),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '三证齐全后记录状态自动变为"三证齐全"，月初可打包发送到邮箱。',
-                      style: theme.textTheme.bodySmall,
+          // 文件内容区域
+          if (exists && isImage)
+            // 有图片 → 显示缩略图
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  child: Image.file(
+                    file!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildAddButton(
+                      '图片加载失败，点击重新上传', onUpload,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
+                // 替换按钮（覆盖在右上角）
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: onUpload,
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(Icons.add, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else if (exists && !isImage)
+            // 有文件但不是图片（如 PDF）
+            _buildFileCard(filePath, onUpload)
+          else
+            // 没有文件 → 显示添加按钮
+            _buildAddButton('点击上传$label', onUpload),
         ],
       ),
     );
   }
 
-  Widget _buildFileCard(
-    String label,
-    String? filePath,
-    IconData icon,
-    Color color,
-    String uploadHint,
-    VoidCallback? onUpload,
-  ) {
-    final exists = filePath != null;
-    final statusColor = exists ? Colors.green : Colors.red;
-    final statusIcon = exists ? Icons.check_circle : Icons.cancel;
-    final statusText = exists ? '已上传 ✓' : '未上传 ✗';
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: statusColor.withAlpha(80),
-          width: 1.5,
+  /// PDF/其他文件卡片
+  Widget _buildFileCard(String filePath, VoidCallback onUpload) {
+    return InkWell(
+      onTap: () => _viewFile(filePath),
+      child: Container(
+        height: 80,
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+          ),
+          color: Colors.grey,
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.picture_as_pdf, size: 32, color: Colors.grey.shade700),
+                  const SizedBox(width: 8),
+                  const Text('点击查看文件'),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: onUpload,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.add, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      child: InkWell(
-        onTap: exists
-            ? () => _viewFile(filePath)
-            : onUpload,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+    );
+  }
+
+  /// 添加按钮（无文件时显示）
+  Widget _buildAddButton(String hint, VoidCallback onUpload) {
+    return InkWell(
+      onTap: onUpload,
+      child: Container(
+        height: 100,
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+          ),
+          color: Colors.grey,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // 状态图标
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: statusColor.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: exists ? color : Colors.grey, size: 24),
+              Icon(Icons.add_circle_outline, size: 36, color: Colors.grey.shade500),
+              const SizedBox(height: 4),
+              Text(
+                hint,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
-              const SizedBox(width: 16),
-
-              // 标签 + 状态
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(statusIcon, size: 14, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // 操作按钮
-              if (exists)
-                IconButton(
-                  icon: const Icon(Icons.visibility, size: 20),
-                  tooltip: '查看文件',
-                  onPressed: () => _viewFile(filePath),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.upload_file, size: 20),
-                  tooltip: uploadHint,
-                  onPressed: onUpload,
-                  color: statusColor,
-                ),
             ],
           ),
         ),
@@ -336,18 +386,9 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.grey),
-          const SizedBox(width: 8),
-          Text('$label: ', style: const TextStyle(color: Colors.grey)),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
+  bool _isImageFile(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
   }
 
   void _viewFile(String path) {

@@ -58,17 +58,6 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _pickFromGallery() async {
-    // Android 13+ uses granular media permissions
-    final photos = await Permission.photos.request();
-    final storage = await Permission.storage.request();
-    if (!photos.isGranted && !storage.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('需要存储权限才能选择照片')),
-        );
-      }
-      return;
-    }
     final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
     if (file == null) return;
     setState(() => _image = File(file.path));

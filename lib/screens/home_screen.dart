@@ -402,43 +402,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 计算记录卡片的颜色
+  /// 红：支付记录和发票都未上传 → pendingPayment
+  /// 橘：上传了支付记录或发票（部分完成）
+  /// 绿：三证齐全（结账单+支付记录+发票）
+  Color _cardColor(ConsumptionRecord record) {
+    if (record.receiptImg != null &&
+        record.paymentImg != null &&
+        record.invoicePdf != null) {
+      return Colors.green;
+    }
+    if (record.paymentImg != null || record.invoicePdf != null) {
+      return Colors.orange;
+    }
+    return Colors.red;
+  }
+
+  String _cardStatusText(ConsumptionRecord record) {
+    if (record.receiptImg != null &&
+        record.paymentImg != null &&
+        record.invoicePdf != null) {
+      return '三证齐全';
+    }
+    if (record.paymentImg != null || record.invoicePdf != null) {
+      return '部分完成';
+    }
+    return '待补充';
+  }
+
   Widget _buildRecordCard(ConsumptionRecord record) {
-    final statusColors = {
-      RecordStatus.pendingPayment: Colors.orange,
-      RecordStatus.pendingInvoice: Colors.blue,
-      RecordStatus.complete: Colors.green,
-      RecordStatus.archived: Colors.grey,
-    };
-    final statusLabels = {
-      RecordStatus.pendingPayment: '待补支付',
-      RecordStatus.pendingInvoice: '待开发票',
-      RecordStatus.complete: '三证齐全',
-      RecordStatus.archived: '已归档',
-    };
+    final color = _cardColor(record);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: statusColors[record.status]?.withAlpha(30),
-          child: Icon(Icons.receipt, color: statusColors[record.status]),
-        ),
-        title: Text(record.merchant),
-        subtitle: Text(
-          '${DateFormat('MM-dd').format(record.date)}  ¥${record.amount.toStringAsFixed(2)}',
-        ),
-        trailing: Chip(
-          label: Text(
-            statusLabels[record.status] ?? '未知',
-            style: TextStyle(
-              fontSize: 12,
-              color: statusColors[record.status],
-            ),
-          ),
-          backgroundColor: statusColors[record.status]?.withAlpha(20),
-          side: BorderSide.none,
-          visualDensity: VisualDensity.compact,
-        ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withAlpha(80), width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () async {
           await Navigator.push(
             context,
@@ -448,6 +450,79 @@ class _HomeScreenState extends State<HomeScreen> {
           );
           _loadData();
         },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              // 左侧彩色标记
+              Container(
+                width: 4,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // 商户名 + 日期
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      record.merchant,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('yyyy-MM-dd').format(record.date),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 金额
+              Text(
+                '¥${record.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 状态标签
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(25),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _cardStatusText(record),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
       ),
     );
   }

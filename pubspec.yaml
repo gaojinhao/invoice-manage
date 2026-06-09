@@ -17,7 +17,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.0
   path_provider: ^2.1.0
 
-  # OCR 识别
+  # OCR 识别（Google ML Kit 离线中文识别）
   google_mlkit_text_recognition: ^0.14.0
 
   # 相机/相册

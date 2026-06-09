@@ -118,6 +118,17 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// 更新结账单照片
+  Future<void> updateReceiptImage(String id, String imagePath) async {
+    final now = DateTime.now();
+    await (update(consumptionRecords)..where((t) => t.id.equals(id))).write(
+      ConsumptionRecordsCompanion(
+        receiptImg: Value(imagePath),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
   /// 更新发票文件
   Future<void> updateInvoicePdf(String id, String pdfPath) async {
     final now = DateTime.now();
