@@ -10,9 +10,9 @@ void main() {
   group('FileService — 路径构建', () {
     test('getRecordDir 构建正确的目录结构', () async {
       // 路径构建逻辑不依赖平台通道，可以直接测试字符串模式
-      const merchant = '华联超市';
-      const date = '2026-06-08';
-      const expectedPattern =
+      final merchant = '华联超市';
+      final date = '2026-06-08';
+      final expectedPattern =
           RegExp(r'.+/records/2026-06/2026-06-08_华联超市$');
 
       // 验证 merchant 中的非法字符被替换

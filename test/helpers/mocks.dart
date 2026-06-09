@@ -4,6 +4,7 @@ import 'package:invoice_app/database/tables.dart';
 import 'package:invoice_app/services/email_service.dart';
 import 'package:invoice_app/services/file_service.dart';
 import 'package:invoice_app/services/notification_service.dart';
+import 'package:invoice_app/services/ocr_service.dart';
 
 /// AppDatabase mock
 class MockAppDatabase extends Mock implements AppDatabase {}
@@ -45,6 +46,7 @@ ConsumptionRecord makeRecord({
   String? paymentImg,
   String? invoicePdf,
   String? notes,
+  String month = '2026-06',
 }) {
   final now = DateTime.now();
   return ConsumptionRecord(
@@ -53,7 +55,7 @@ ConsumptionRecord makeRecord({
     merchant: merchant,
     amount: amount,
     status: status,
-    month: '2026-06',
+    month: month,
     receiptImg: receiptImg,
     paymentImg: paymentImg,
     invoicePdf: invoicePdf,

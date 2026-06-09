@@ -49,7 +49,8 @@ class FileService {
     final monthStr = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final monthDir = Directory('${base.path}/records/$monthStr');
     if (!await monthDir.exists()) return [];
-    return monthDir.list().whereType<Directory>().toList();
+    final entities = await monthDir.list().toList();
+    return entities.whereType<Directory>().toList();
   }
 
   /// 打包某月的完整记录为 ZIP

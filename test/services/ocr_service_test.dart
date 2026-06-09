@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/services/ocr_service.dart';
+
+class MockTextRecognizer extends Mock implements TextRecognizer {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +34,9 @@ void main() {
     late OcrService service;
 
     setUp(() {
-      service = OcrService();
+      final mockRecognizer = MockTextRecognizer();
+      when(() => mockRecognizer.close()).thenAnswer((_) async {});
+      service = OcrService(recognizer: mockRecognizer);
     });
 
     tearDown(() {

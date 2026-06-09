@@ -17,7 +17,7 @@ enum RecordStatus {
 
 /// 消费记录表
 class ConsumptionRecords extends Table {
-  TextColumn get id => text().clientDefault(() => _uuid())();
+  TextColumn get id => text().clientDefault(() => uuid())();
 
   DateTimeColumn get date => dateTime()();
 
@@ -54,12 +54,12 @@ class ConsumptionRecords extends Table {
   ];
 }
 
-String _uuid() {
+String uuid() {
   // UUID v4 生成（无外部依赖）：48位时间戳 + 16位计数器 + 64位随机数 = 128位
   final now = DateTime.now().microsecondsSinceEpoch;
-  _uuidCounter = (_uuidCounter + 1) & 0xFFFF;
+  uuidCounter = (uuidCounter + 1) & 0xFFFF;
   final random = (now ^ (now << 21) ^ (now >> 15)) & 0xFFFFFFFFFFFFFFFF;
-  final high = (now & 0xFFFFFFFFFFFF) << 16 | _uuidCounter;
+  final high = (now & 0xFFFFFFFFFFFF) << 16 | uuidCounter;
   return '${high.toRadixString(16).padLeft(16, '0')}${random.toRadixString(16).padLeft(16, '0')}';
 }
-int _uuidCounter = 0;
+int uuidCounter = 0;

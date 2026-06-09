@@ -1,11 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/database/tables.dart';
 import 'package:invoice_app/services/check_pack_service.dart';
+import 'package:invoice_app/services/email_service.dart';
 
 import '../helpers/mocks.dart';
 
 void main() {
+  registerFallbackValue(File(''));
   group('DailyCheckService', () {
     late MockAppDatabase mockDb;
     late MockEmailService mockEmail;
@@ -52,7 +56,7 @@ void main() {
 
       expect(missing, 0);
       expect(invoices, 0);
-      verify(() => mockNotifier.showPaymentReminder(any()), never).called(0);
+      verifyNever(() => mockNotifier.showPaymentReminder(any()));
     });
 
     test('run — 邮箱未配置则跳过发票检查', () async {
@@ -63,7 +67,7 @@ void main() {
       final (_, invoices) = await service.run();
 
       expect(invoices, 0);
-      verify(() => mockEmail.checkAndDownloadInvoices(any()), never).called(0);
+      verifyNever(() => mockEmail.checkAndDownloadInvoices(any()));
     });
 
     test('run — 邮箱已配置时执行发票下载', () async {
@@ -190,12 +194,12 @@ void main() {
       final result = await service.run();
       expect(result, 0);
       // 不应该尝试发邮件
-      verify(() => mockEmail.sendEmail(
+      verifyNever(() => mockEmail.sendEmail(
         to: any(named: 'to'),
         subject: any(named: 'subject'),
         body: any(named: 'body'),
         attachmentPaths: any(named: 'attachmentPaths'),
-      ), never).called(0);
+      ));
     });
   });
 }

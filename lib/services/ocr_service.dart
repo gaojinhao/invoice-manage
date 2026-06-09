@@ -26,8 +26,8 @@ class OcrResult {
 class OcrService {
   final TextRecognizer _recognizer;
 
-  OcrService({String? language})
-      : _recognizer = TextRecognizer(
+  OcrService({String? language, TextRecognizer? recognizer})
+      : _recognizer = recognizer ?? TextRecognizer(
           script: TextRecognitionScript.chinese,
         );
 
@@ -85,8 +85,8 @@ class OcrService {
   /// 从 OCR 文本中提取金额
   double? extractAmount(String text) {
     final patterns = [
-      RegExp(r'(?:合计|总计|实收|应付|支付|金额|¥|￥)\s*[：:\s]*\s*(\d+\.?\d*)'),
-      RegExp(r'(?:合计|总计|实收)[：:\s]*[¥￥]?\s*(\d+\.?\d*)'),
+      RegExp(r'(?:合计|总计|实收|应付|支付|金额|¥|￥)\s*[：:\s=]*\s*(\d+\.?\d*)'),
+      RegExp(r'(?:合计|总计|实收)[：:\s=]*[¥￥]?\s*(\d+\.?\d*)'),
       RegExp(r'[¥￥]\s*(\d+\.\d{2})'),
       RegExp(r'(\d+\.\d{2})\s*元'),
     ];

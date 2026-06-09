@@ -1,11 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/services/ocr_service.dart';
 
+class MockTextRecognizer extends Mock implements TextRecognizer {}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('OcrService.extractMerchant', () {
     late OcrService service;
+    late MockTextRecognizer mockRecognizer;
 
-    setUp(() => service = OcrService());
+    setUp(() {
+      mockRecognizer = MockTextRecognizer();
+      when(() => mockRecognizer.close()).thenAnswer((_) async {});
+      service = OcrService(recognizer: mockRecognizer);
+    });
     tearDown(() => service.dispose());
 
     test('商户: 前缀匹配', () {
@@ -54,8 +65,13 @@ void main() {
 
   group('OcrService.extractAmount', () {
     late OcrService service;
+    late MockTextRecognizer mockRecognizer;
 
-    setUp(() => service = OcrService());
+    setUp(() {
+      mockRecognizer = MockTextRecognizer();
+      when(() => mockRecognizer.close()).thenAnswer((_) async {});
+      service = OcrService(recognizer: mockRecognizer);
+    });
     tearDown(() => service.dispose());
 
     test('合计：金额', () {
@@ -105,8 +121,13 @@ void main() {
 
   group('OcrService.extractDate', () {
     late OcrService service;
+    late MockTextRecognizer mockRecognizer;
 
-    setUp(() => service = OcrService());
+    setUp(() {
+      mockRecognizer = MockTextRecognizer();
+      when(() => mockRecognizer.close()).thenAnswer((_) async {});
+      service = OcrService(recognizer: mockRecognizer);
+    });
     tearDown(() => service.dispose());
 
     test('YYYY-MM-DD 格式', () {

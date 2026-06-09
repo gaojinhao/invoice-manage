@@ -218,8 +218,9 @@ class _ImapClient {
 
   Future<List<String>> _readResponse() async {
     final lines = <String>[];
-    String? line;
-    while ((line = await _readLine()) != null) {
+    while (true) {
+      final line = await _readLine();
+      if (line == null) break;
       lines.add(line);
       if (line.startsWith(_tag) || line.startsWith('$TAG OK') || line.startsWith('$TAG NO') || line.startsWith('$TAG BAD')) {
         break;
@@ -228,9 +229,11 @@ class _ImapClient {
       if (line.startsWith('* ') && line.contains('FETCH')) {
         // FETCH 响应可能跨多行，继续读取
         if (!line.endsWith(')')) {
-          while ((line = await _readLine()) != null) {
-            lines.add(line);
-            if (line.endsWith(')')) break;
+          while (true) {
+            final inner = await _readLine();
+            if (inner == null) break;
+            lines.add(inner);
+            if (inner.endsWith(')')) break;
           }
         }
       }
@@ -258,7 +261,7 @@ class _ImapClient {
         bytes.addAll(data);
         remaining -= data.length;
         if (remaining <= 0) {
-          completer.complete(Uint8List.fromList(bytes.take(size)));
+          completer.complete(Uint8List.fromList(bytes.take(size).toList()));
         }
       },
       onError: (e) => completer.completeError(e),
@@ -274,7 +277,13 @@ class _ImapClient {
 
   Future<String?> _readLine() async {
     try {
-      final line = await _socket?.transform(utf8.decoder).transform(const LineSplitter()).first;
+      final socket = _socket;
+      if (socket == null) return null;
+      final line = await socket
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .first;
       return line;
     } catch (_) {
       return null;
@@ -338,9 +347,7 @@ class EmailService {
   Future<bool> verifyConnection(String email, String password, String imapServer, int imapPort) async {
     try {
       final smtpServer = getSmtpServer(email, password);
-      final connection = SMTPConnection(smtpServer);
-      await connection.connect();
-      await connection.close();
+      await checkCredentials(smtpServer);
       return true;
     } catch (_) {
       return false;
@@ -409,13 +416,19 @@ class EmailService {
 
   /// SMTP 服务器配置
   SmtpServer getSmtpServer(String email, String password) {
-    if (email.contains('qq.com')) return SMTP(email, password, 'smtp.qq.com', 465, ssl: true);
-    if (email.contains('163.com')) return SMTP(email, password, 'smtp.163.com', 465, ssl: true);
-    if (email.contains('outlook.com') || email.contains('hotmail.com')) {
-      return SMTP(email, password, 'smtp.office365.com', 587, ssl: false);
+    if (email.contains('qq.com')) {
+      return SmtpServer('smtp.qq.com', username: email, password: password, port: 465, ssl: true);
     }
-    if (email.contains('gmail.com')) return SMTP(email, password, 'smtp.gmail.com', 587, ssl: false);
-    return SMTP(email, password, 'smtp.${email.split('@').last}', 465, ssl: true);
+    if (email.contains('163.com')) {
+      return SmtpServer('smtp.163.com', username: email, password: password, port: 465, ssl: true);
+    }
+    if (email.contains('outlook.com') || email.contains('hotmail.com')) {
+      return SmtpServer('smtp.office365.com', username: email, password: password, port: 587, ssl: false);
+    }
+    if (email.contains('gmail.com')) {
+      return SmtpServer('smtp.gmail.com', username: email, password: password, port: 587, ssl: false);
+    }
+    return SmtpServer('smtp.${email.split('@').last}', username: email, password: password, port: 465, ssl: true);
   }
 
   /// 获取 IMAP 服务器地址
