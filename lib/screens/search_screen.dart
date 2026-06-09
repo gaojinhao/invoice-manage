@@ -30,7 +30,7 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
     );
   }
 
-  Future<List<ConsumptionRecord>> _search(String q) async {
+  Future<List<ConsumptionRecord>> _search(BuildContext context, String q) async {
     if (q.trim().isEmpty) return [];
     final db = context.read<AppDatabase>();
     return db.searchRecords(q.trim());
@@ -44,7 +44,7 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
 
   Widget _buildList(BuildContext context) {
     return FutureBuilder<List<ConsumptionRecord>>(
-      future: _search(query),
+      future: _search(context, query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -80,14 +80,14 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
           itemCount: records.length,
           itemBuilder: (context, index) {
             final record = records[index];
-            return _buildSearchResult(record);
+            return _buildSearchResult(context, record);
           },
         );
       },
     );
   }
 
-  Widget _buildSearchResult(ConsumptionRecord record) {
+  Widget _buildSearchResult(BuildContext context, ConsumptionRecord record) {
     final statusLabels = {
       RecordStatus.pendingPayment: '待补支付',
       RecordStatus.pendingInvoice: '待开发票',
@@ -102,7 +102,7 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
     };
 
     // 高亮匹配文本
-    final merchantText = _highlightMatch(record.merchant);
+    final merchantText = _highlightMatch(context, record.merchant);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -127,7 +127,7 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
     );
   }
 
-  Widget _highlightMatch(String text) {
+  Widget _highlightMatch(BuildContext context, String text) {
     final idx = text.toLowerCase().indexOf(query.toLowerCase().trim());
     if (idx < 0) return Text(text);
 

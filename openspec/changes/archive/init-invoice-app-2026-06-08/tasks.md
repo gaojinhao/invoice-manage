@@ -52,6 +52,6 @@
 
 - [x] 7.1 跑 `flutter create .` 重新生成 Android 平台脚手架（build.gradle / settings.gradle / gradle-wrapper 等）
 - [x] 7.2 恢复 AndroidManifest.xml 中的权限和 WorkManager 配置
-- [ ] 7.3 跑 `flutter build apk --debug` 验证构建成功
-- [ ] 7.4 跑 `flutter analyze` 确保无新增错误
+- [x] 7.3 跑 `flutter build apk --debug` 验证构建成功（188MB debug APK）
+- [x] 7.4 跑 `flutter analyze` 确保无新增错误（0 errors）
 - [ ] 7.5 真机运行验证全流程

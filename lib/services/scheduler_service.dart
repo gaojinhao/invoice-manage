@@ -34,7 +34,7 @@ class SchedulerService {
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
@@ -48,7 +48,7 @@ class SchedulerService {
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
