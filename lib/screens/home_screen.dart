@@ -7,7 +7,7 @@ import '../database/app_database.dart';
 import '../database/tables.dart';
 import '../services/file_service.dart';
 import '../services/export_service.dart';
-import '../services/notification_service.dart';
+import '../services/email_service.dart';
 import 'camera_screen.dart';
 import 'record_detail_screen.dart';
 import 'email_config_screen.dart';
@@ -70,25 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _dailyCheck() async {
-    final db = context.read<AppDatabase>();
-    final pending = await db.getRecordsNeedingPayment();
-    if (pending.isNotEmpty) {
-      await NotificationService().showPaymentReminder(pending.length);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('有 ${pending.length} 条记录缺少支付记录截图')),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('所有记录已齐全 ✓')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -99,26 +80,29 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () => showSearch<ConsumptionRecord?>(
-              context: context,
-              delegate: RecordSearchDelegate(),
-            ),
+            onPressed:
+                () => showSearch<ConsumptionRecord?>(
+                  context: context,
+                  delegate: RecordSearchDelegate(),
+                ),
             tooltip: '搜索',
           ),
           IconButton(
             icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ChartsScreen()),
-            ),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChartsScreen()),
+                ),
             tooltip: '统计',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
           ),
         ],
       ),
@@ -135,52 +119,65 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                slivers: [
-                  // 月份切换 + 总额
-                  SliverToBoxAdapter(child: _buildHeader(theme)),
-                  // 状态统计卡片
-                  SliverToBoxAdapter(child: _buildStatusCards(theme)),
-                  // 操作按钮栏
-                  SliverToBoxAdapter(child: _buildActionBar(theme)),
-                  // 记录列表标题
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        '消费记录',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  // 记录列表
-                  if (_records.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('暂无消费记录', style: TextStyle(color: Colors.grey)),
-                            SizedBox(height: 8),
-                            Text('点击下方按钮拍照上传结账单', style: TextStyle(color: Colors.grey)),
-                          ],
+        child:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : CustomScrollView(
+                  slivers: [
+                    // 月份切换 + 总额
+                    SliverToBoxAdapter(child: _buildHeader(theme)),
+                    // 状态统计卡片
+                    SliverToBoxAdapter(child: _buildStatusCards(theme)),
+                    // 操作按钮栏
+                    SliverToBoxAdapter(child: _buildActionBar(theme)),
+                    // 记录列表标题
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          '消费记录',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildRecordCard(_records[index]),
-                        childCount: _records.length,
-                      ),
                     ),
-                ],
-              ),
+                    // 记录列表
+                    if (_records.isEmpty)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.receipt_long,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                '暂无消费记录',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '点击下方按钮拍照上传结账单',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildRecordCard(_records[index]),
+                          childCount: _records.length,
+                        ),
+                      ),
+                  ],
+                ),
       ),
     );
   }
@@ -200,7 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Text(
                 fmt.format(_currentMonth),
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
@@ -227,10 +226,30 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _statusCard('待补支付', _statusCounts[RecordStatus.pendingPayment] ?? 0, Colors.orange, theme),
-          _statusCard('待开发票', _statusCounts[RecordStatus.pendingInvoice] ?? 0, Colors.blue, theme),
-          _statusCard('三证齐全', _statusCounts[RecordStatus.complete] ?? 0, Colors.green, theme),
-          _statusCard('已归档', _statusCounts[RecordStatus.archived] ?? 0, Colors.grey, theme),
+          _statusCard(
+            '待补支付',
+            _statusCounts[RecordStatus.pendingPayment] ?? 0,
+            Colors.orange,
+            theme,
+          ),
+          _statusCard(
+            '待开发票',
+            _statusCounts[RecordStatus.pendingInvoice] ?? 0,
+            Colors.blue,
+            theme,
+          ),
+          _statusCard(
+            '三证齐全',
+            _statusCounts[RecordStatus.complete] ?? 0,
+            Colors.green,
+            theme,
+          ),
+          _statusCard(
+            '已归档',
+            _statusCounts[RecordStatus.archived] ?? 0,
+            Colors.grey,
+            theme,
+          ),
         ],
       ),
     );
@@ -262,6 +281,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final scaffold = ScaffoldMessenger.of(context);
     final fileService = FileService();
 
+    if (_records.isEmpty) {
+      scaffold.showSnackBar(
+        const SnackBar(
+          content: Text('当前月暂无记录可打包'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     scaffold.showSnackBar(
       const SnackBar(
         content: Text('正在打包，请稍候...'),
@@ -292,34 +321,37 @@ class _HomeScreenState extends State<HomeScreen> {
       // 弹出操作选择
       final action = await showModalBottomSheet<String>(
         context: context,
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  DateFormat('yyyy年M月').format(_currentMonth),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
+        builder:
+            (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      DateFormat('yyyy年M月').format(_currentMonth),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('下载 / 分享文件'),
+                    subtitle: const Text('保存到本地或通过微信/QQ 发送'),
+                    onTap: () => Navigator.pop(ctx, 'share'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.email),
+                    title: const Text('发送到邮箱'),
+                    subtitle: const Text('需要先配置邮箱'),
+                    onTap: () => Navigator.pop(ctx, 'email'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const Divider(height: 0),
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('下载 / 分享文件'),
-                subtitle: const Text('保存到本地或通过微信/QQ 发送'),
-                onTap: () => Navigator.pop(ctx, 'share'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.email),
-                title: const Text('发送到邮箱'),
-                subtitle: const Text('需要先配置邮箱'),
-                onTap: () => Navigator.pop(ctx, 'email'),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
+            ),
       );
 
       if (action == null || !mounted) return;
@@ -329,52 +361,78 @@ class _HomeScreenState extends State<HomeScreen> {
         await exportService.shareFile(zipPath);
       } else if (action == 'email') {
         // 检查邮箱是否已配置
-        final storage = const FlutterSecureStorage();
-        final email = await storage.read(key: 'email_addr');
-        if (email == null || email.isEmpty) {
+        const storage = FlutterSecureStorage();
+        final email = (await storage.read(key: 'email_addr'))?.trim() ?? '';
+        final password = await storage.read(key: 'email_pass') ?? '';
+        final sendTo = (await storage.read(key: 'send_to'))?.trim() ?? '';
+        if (email.isEmpty || password.isEmpty) {
+          if (!mounted) return;
           final confirm = await showDialog<bool>(
             context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('未配置邮箱'),
-              content: const Text('请先在设置中配置邮箱，即可将打包文件自动发送。'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('取消'),
+            builder:
+                (ctx) => AlertDialog(
+                  title: const Text('未配置邮箱'),
+                  content: const Text('请先在设置中配置邮箱，即可将打包文件自动发送。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('取消'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('去配置'),
+                    ),
+                  ],
                 ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('去配置'),
-                ),
-              ],
-            ),
           );
-          if (confirm == true && mounted) {
+          if (confirm == true) {
+            if (!mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const EmailConfigScreen()),
             );
           }
         } else {
-          // 邮箱已配置，直接发送
-          scaffold.showSnackBar(
-            const SnackBar(
-              content: Text('邮箱发送功能即将实现（当前可通过分享手动发送）'),
-              duration: Duration(seconds: 2),
+          final emailService = EmailService();
+          emailService.configure(
+            EmailConfig(
+              email: email,
+              password: password,
+              imapServer: emailService.getImapServer(email),
+              sendTo: sendTo.isNotEmpty ? sendTo : null,
             ),
           );
-          // 先分享文件
-          final exportService = ExportService(context.read<AppDatabase>());
-          await exportService.shareFile(zipPath);
+          final targetEmail = sendTo.isNotEmpty ? sendTo : email;
+          final monthStr = DateFormat('yyyy年M月').format(_currentMonth);
+
+          scaffold.showSnackBar(
+            const SnackBar(
+              content: Text('正在发送到邮箱，请稍候...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+
+          final sent = await emailService.sendEmail(
+            to: targetEmail,
+            subject: '$monthStr 报销文件',
+            body:
+                '您好，\n\n$monthStr 的报销文件已打包，请查收附件。\n\n---\n本邮件由报销文件管理 App 手动发送',
+            attachmentPaths: [zipPath],
+          );
+
+          if (!mounted) return;
+          scaffold.showSnackBar(
+            SnackBar(
+              content: Text(sent ? '已发送到 $targetEmail' : '发送失败，请检查邮箱配置、授权码和网络'),
+              backgroundColor: sent ? Colors.green : Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
         scaffold.showSnackBar(
-          SnackBar(
-            content: Text('打包失败: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('打包失败: $e'), backgroundColor: Colors.red),
         );
       }
     }
