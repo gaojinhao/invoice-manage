@@ -461,6 +461,15 @@ class EmailService {
     }
   }
 
+  /// Visible for testing — 判断邮件主题是否为发票相关
+  static bool isInvoiceSubject(String subject) {
+    return subject.contains('发票') ||
+        subject.contains('invoice') ||
+        subject.contains('Invoice') ||
+        subject.contains('电子票据') ||
+        subject.contains('开票');
+  }
+
   /// 检查邮箱并下载发票
   /// 返回新下载的附件列表
   Future<List<DownloadedInvoice>> checkAndDownloadInvoices(
@@ -491,12 +500,7 @@ class EmailService {
         final subject = envelope['subject'] ?? '';
 
         // 判断是否可能包含发票（主题含"发票"、"invoice"等关键字）
-        final isInvoice =
-            subject.contains('发票') ||
-            subject.contains('invoice') ||
-            subject.contains('Invoice') ||
-            subject.contains('电子票据') ||
-            subject.contains('开票');
+        final isInvoice = isInvoiceSubject(subject);
 
         if (!isInvoice) continue;
 

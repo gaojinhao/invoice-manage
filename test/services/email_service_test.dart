@@ -270,4 +270,89 @@ void main() {
       );
     });
   });
+
+  // T11: saveConfig 真实逻辑
+  group('EmailService — saveConfig 真实逻辑 (T11)', () {
+    late EmailService emailService;
+
+    setUp(() {
+      emailService = EmailService();
+    });
+
+    test('saveConfig 后 isConfigured 返回 true', () async {
+      await emailService.saveConfig(
+        email: 'me@qq.com',
+        password: 'authcode',
+        imapServer: 'imap.qq.com',
+        sendTo: 'boss@company.com',
+      );
+
+      expect(emailService.isConfigured, true);
+    });
+
+    test('saveConfig 后 config 返回正确值', () async {
+      await emailService.saveConfig(
+        email: 'me@163.com',
+        password: 'pwd123',
+        imapServer: 'imap.163.com',
+      );
+
+      final config = emailService.config;
+      expect(config, isNotNull);
+      expect(config!.email, 'me@163.com');
+      expect(config.imapServer, 'imap.163.com');
+      expect(config.sendTo, isNull); // 未传 sendTo
+    });
+
+    test('未 saveConfig 时 isConfigured 返回 false', () {
+      expect(emailService.isConfigured, false);
+      expect(emailService.config, isNull);
+    });
+  });
+
+  // T9: isInvoiceSubject 静态方法
+  group('EmailService.isInvoiceSubject (T9)', () {
+    test('"发票" 关键词返回 true', () {
+      expect(EmailService.isInvoiceSubject('电子发票_华联超市'), true);
+      expect(EmailService.isInvoiceSubject('您的发票已开具'), true);
+    });
+
+    test('"invoice" 关键词（英文）返回 true', () {
+      expect(EmailService.isInvoiceSubject('Your invoice is ready'), true);
+      expect(EmailService.isInvoiceSubject('Invoice #12345'), true);
+    });
+
+    test('"电子票据" 关键词返回 true', () {
+      expect(EmailService.isInvoiceSubject('电子票据通知'), true);
+    });
+
+    test('"开票" 关键词返回 true', () {
+      expect(EmailService.isInvoiceSubject('开票成功通知'), true);
+    });
+
+    test('无关主题返回 false', () {
+      expect(EmailService.isInvoiceSubject('会议通知'), false);
+      expect(EmailService.isInvoiceSubject('日报周报'), false);
+      expect(EmailService.isInvoiceSubject(''), false);
+    });
+  });
+
+  // T10: sendEmail 未配置时返回 false
+  group('EmailService — sendEmail 边界 (T10)', () {
+    late EmailService emailService;
+
+    setUp(() {
+      emailService = EmailService();
+    });
+
+    test('未配置时 sendEmail 返回 false', () async {
+      // 无配置 → 缺少 SMTP 信息，应返回 false
+      final result = await emailService.sendEmail(
+        to: 'someone@example.com',
+        subject: 'test',
+        body: 'test body',
+      );
+      expect(result, false);
+    });
+  });
 }
