@@ -4,17 +4,17 @@
 
 ## P0 — 关键缺失
 
-- [ ] **T1** `app_database_test.dart`: `updateReceiptImage()` 零覆盖 — 测试更新结账单后状态重新计算
-- [ ] **T2** `app_database_test.dart`: `getAllRecords()`, `getMonthlyTrend()`, `getStatusCountsByMonth()`, `deleteAllRecords()` 零覆盖
-- [ ] **T3** `app_database_test.dart`: 无 in-memory Drift 数据库测试 — 所有非 static 方法仅靠 mock
+- [x] **T1** `app_database_test.dart`: ✅ 已完成 — 3 个 updateReceiptImage 测试（状态重算、三证齐全、不存在的记录）
+- [x] **T2** `app_database_test.dart`: ✅ 已完成 — getAllRecords/getMonthlyTrend/getStatusCountsByMonth/deleteAllRecords 全部覆盖
+- [x] **T3** `app_database_test.dart`: ✅ 已完成 — 38 个 in-memory SQLite 测试，所有非 static 方法已用真实 DB 验证
 - [x] **T4** `file_service_test.dart`: ✅ 已完成 — 20 个真实文件 I/O 测试，覆盖所有 public 方法
 - [x] **T5** `email_service_test.dart`: ✅ 已完成 — 5 个纯逻辑验证测试（邮箱格式/密码/不可达服务器）
 - [x] **T6** `scheduler_service_test.dart`: ✅ 已完成 — 15 个测试覆盖 nextRunAt/nextMonthlyRun 所有边界
 
 ## P1 — 重要
 
-- [ ] **T7** `app_database_test.dart`: `searchRecords` notes 字段匹配未测试；多条件 OR 逻辑未验证
-- [ ] **T8** `app_database_test.dart`: `updatePaymentImage` / `updateReceiptImage` / `updateInvoicePdf` —— record 不存在时的 early return 均未测试
+- [x] **T7** `app_database_test.dart`: ✅ 已完成 — searchRecords 按备注搜索 + 空关键词 + 无匹配场景
+- [x] **T8** `app_database_test.dart`: ✅ 已完成 — updatePaymentImage/updateReceiptImage/updateInvoicePdf 均测试了 record 不存在场景
 - [ ] **T9** `email_service_test.dart`: `checkAndDownloadInvoices` 主题关键词过滤（发票/invoice/电子票据/开票）未测
 - [ ] **T10** `email_service_test.dart`: `sendEmail` 真实实现（Message 构建、附件、错误处理）未测
 - [ ] **T11** `email_service_test.dart`: `saveConfig` 真实逻辑未测（仅 mock）
