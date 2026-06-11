@@ -29,14 +29,14 @@
 
 ## P2 — 锦上添花
 
-- [ ] **T20** `app_database_test.dart`: 排序、边界值、searchRecords 组合查询
-- [ ] **T21** `email_service_test.dart`: `_decodeMimeHeader`, `_monthAbbr`
-- [x] **T22** `file_service_test.dart`: ✅ 辅助方法已通过 public API 间接覆盖（_extensionOf 通过 saveInvoiceFile，_recordFolderName 通过 zipRecords）
+- [x] **T20** `app_database_test.dart`: ✅ 已完成 — 5 个测试：组合搜索、排序验证、趋势边界
+- [x] **T21** `email_service_test.dart`: ✅ 已完成 — 7 个测试：decodeMimeHeader (base64/plain/empty) + monthAbbr
+- [x] **T22** `file_service_test.dart`: ✅ 辅助方法已通过 public API 间接覆盖
 - [x] **T23** `file_service_test.dart`: ✅ source==target skip 和旧发票删除已覆盖
-- [ ] **T24** `invoice_matcher_service_test.dart`: 相同分数歧义、边界值提取
-- [ ] **T25** `ocr_service_test.dart`: `_extractMerchantFromLines` 完整管线, `_parseAmount`, `_normalizeMerchantOcrText`
-- [ ] **T26** `notification_service_test.dart`: 三个通知方法（需 mock 插件）
-- [ ] **T27** `scheduler_service_test.dart`: `_callbackDispatcher` 任务路由
-- [x] **T28** `export_service_test.dart`: ✅ 已完成 — backupDatabase 源文件不存在时仍返回路径（不抛异常）
-- [ ] **T29** `check_pack_service_test.dart`: DailyCheckService 临时目录创建失败
-- [ ] **T30** `widgets/` — 所有 7 个页面零 widget 测试
+- [x] **T24** `invoice_matcher_service_test.dart`: ✅ 已完成 — 5 个测试：零/负数/货币符号/千分位 + 同分歧义
+- [~] **T25** `ocr_service_test.dart`: ⚠️ 跳过 — 内部提取管线需 ML Kit RecognizedText 对象，适合 flutter_drive 集成测试
+- [x] **T26** `notification_service_test.dart`: ✅ 已完成 — 4 个测试：全部 3 个通知方法 mock 验证
+- [~] **T27** `scheduler_service_test.dart`: ⚠️ 跳过 — _callbackDispatcher 需后台 isolate + Workmanager mock
+- [x] **T28** `export_service_test.dart`: ✅ 已完成 — backupDatabase 源文件不存在
+- [x] **T29** `check_pack_service_test.dart`: ✅ 已完成 — 间接覆盖：异常 catch 块已测试优雅降级
+- [~] **T30** `widgets/`: ⚠️ 跳过 — 7 个页面需完整 widget test 环境搭建，建议后续专项处理
