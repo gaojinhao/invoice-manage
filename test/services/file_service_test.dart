@@ -1,23 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:invoice_app/services/file_service.dart';
-
-class MockFile extends Mock implements File {}
 
 void main() {
   group('FileService — 路径构建', () {
     test('getRecordDir 构建正确的目录结构', () async {
       // 路径构建逻辑不依赖平台通道，可以直接测试字符串模式
-      final merchant = '华联超市';
-      final date = '2026-06-08';
-      final expectedPattern =
-          RegExp(r'.+/records/2026-06/2026-06-08_华联超市$');
-
       // 验证 merchant 中的非法字符被替换
       const specialMerchant = 'test/file?name<>';
-      final safeMerchant = specialMerchant.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final safeMerchant = specialMerchant.replaceAll(
+        RegExp(r'[\\/:*?"<>|]'),
+        '_',
+      );
       expect(safeMerchant, 'test_file_name__');
     });
 
