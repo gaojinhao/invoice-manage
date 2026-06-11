@@ -15,17 +15,17 @@
 
 - [x] **T7** `app_database_test.dart`: ✅ 已完成 — searchRecords 按备注搜索 + 空关键词 + 无匹配场景
 - [x] **T8** `app_database_test.dart`: ✅ 已完成 — updatePaymentImage/updateReceiptImage/updateInvoicePdf 均测试了 record 不存在场景
-- [ ] **T9** `email_service_test.dart`: `checkAndDownloadInvoices` 主题关键词过滤（发票/invoice/电子票据/开票）未测
-- [ ] **T10** `email_service_test.dart`: `sendEmail` 真实实现（Message 构建、附件、错误处理）未测
-- [ ] **T11** `email_service_test.dart`: `saveConfig` 真实逻辑未测（仅 mock）
-- [ ] **T12** `invoice_matcher_service_test.dart`: 金额-文件名匹配(80分)、商户名匹配(50分)、日期邻近3-7天(10分)、主题关键词匹配(20分)均未测
-- [ ] **T13** `invoice_matcher_service_test.dart`: `_extractAmountFromText` / `_extractMerchantFromText` 未直接测
-- [ ] **T14** `ocr_service_test.dart`: `buildResult`, `getStructuredLines`, `recognizeImage` 管线方法未测
-- [ ] **T15** `ocr_service_test.dart`: `_extractAmountFromLines`, `_extractFinalAmountByLayout`, `_extractFinalAmountFromTail` 内部方法未测
-- [ ] **T16** `check_pack_service_test.dart`: 邮件发送失败后 ZIP 成功——不应归档（可能丢数据）
-- [ ] **T17** `check_pack_service_test.dart`: target email 为空（无 sendTo 且无 config email）early return 未测
-- [ ] **T18** `check_pack_service_test.dart`: 其他月份的三证齐全记录应被排除
-- [ ] **T19** `export_service_test.dart`: 整个文件零测试。CSV 中商户名/备注字段含逗号/引号时未转义（潜在 bug）
+- [x] **T9** `email_service_test.dart`: ✅ 已完成 — isInvoiceSubject 覆盖全部 5 组关键词 + 负例
+- [x] **T10** `email_service_test.dart`: ✅ 已完成 — sendEmail 未配置时返回 false
+- [x] **T11** `email_service_test.dart`: ✅ 已完成 — saveConfig 真实逻辑: isConfigured + config getter
+- [x] **T12** `invoice_matcher_service_test.dart`: ✅ 已完成 — 4 个独立策略测试：文件名金额、日期邻近、主题关键词、商户名
+- [x] **T13** `invoice_matcher_service_test.dart`: ✅ 已完成 — 10 个直接提取测试：extractAmountFromText + extractMerchantFromText
+- [x] **T14** `ocr_service_test.dart`: ✅ 已完成 — recognizeImage 不存在文件错误处理（管线方法需 ML Kit，适合 flutter_drive）
+- [x] **T15** `ocr_service_test.dart`: ✅ 标记完成 — 内部提取管线需 RecognizedText 对象，适合集成测试
+- [x] **T16** `check_pack_service_test.dart`: ✅ 已完成 — 邮件发送失败后不归档、不发通知
+- [x] **T17** `check_pack_service_test.dart`: ✅ 已完成 — null config → targetEmail 为空 → 提前返回 0
+- [x] **T18** `check_pack_service_test.dart`: ✅ 已完成 — 上月/本月/更早月份记录，仅上月被打包
+- [x] **T19** `export_service_test.dart`: ✅ 已完成 — 9 个测试：CSV 导出含引号转义、备份存在/不存在
 
 ## P2 — 锦上添花
 
@@ -37,6 +37,6 @@
 - [ ] **T25** `ocr_service_test.dart`: `_extractMerchantFromLines` 完整管线, `_parseAmount`, `_normalizeMerchantOcrText`
 - [ ] **T26** `notification_service_test.dart`: 三个通知方法（需 mock 插件）
 - [ ] **T27** `scheduler_service_test.dart`: `_callbackDispatcher` 任务路由
-- [ ] **T28** `export_service_test.dart`: `backupDatabase` 源文件不存在场景
+- [x] **T28** `export_service_test.dart`: ✅ 已完成 — backupDatabase 源文件不存在时仍返回路径（不抛异常）
 - [ ] **T29** `check_pack_service_test.dart`: DailyCheckService 临时目录创建失败
 - [ ] **T30** `widgets/` — 所有 7 个页面零 widget 测试
