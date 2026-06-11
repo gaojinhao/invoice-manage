@@ -52,14 +52,32 @@ void main() {
     });
 
     test('无匹配时取第一行', () {
-      expect(
-        service.extractMerchant('这是一张小票\n地址：xxx\n合计：100.00'),
-        '这是一张小票',
-      );
+      expect(service.extractMerchant('这是一张小票\n地址：xxx\n合计：100.00'), '这是一张小票');
     });
 
     test('空文本返回 null', () {
       expect(service.extractMerchant(''), null);
+    });
+
+    test('真实小票标题在前时选择门店名称', () {
+      expect(
+        service.extractMerchant('销售小票\n门店名称：喜茶深圳万象天地店\n地址：深圳市南山区\n合计：39.00'),
+        '喜茶深圳万象天地店',
+      );
+    });
+
+    test('支付截图优先选择收款商户', () {
+      expect(
+        service.extractMerchant('支付成功\n收款商户：麦当劳前海壹方汇店\n订单金额 ¥45.00'),
+        '麦当劳前海壹方汇店',
+      );
+    });
+
+    test('海底捞 OCR 错字归一并优先提取头部店名', () {
+      expect(
+        service.extractMerchant('@海底火祸\n而底排摩尔城店\n单据类型:预打单\n应付金额:\n193.00'),
+        '海底捞摩尔城店',
+      );
     });
   });
 
@@ -116,6 +134,49 @@ void main() {
 
     test('空文本返回 null', () {
       expect(service.extractAmount(''), null);
+    });
+
+    test('真实小票排除电话优惠并选择实收金额', () {
+      expect(
+        service.extractAmount(
+          '电话：13800138000\n商品A 68.00\n优惠：10.00\n合计：58.00\n实收 ¥58.00',
+        ),
+        closeTo(58.00, 0.001),
+      );
+    });
+
+    test('金额标签与金额分行时提取下一行金额', () {
+      expect(
+        service.extractAmount('应付金额\n￥88.50\n支付方式：微信支付'),
+        closeTo(88.50, 0.001),
+      );
+    });
+
+    test('支付截图优先选择实付而非订单金额', () {
+      expect(
+        service.extractAmount(
+          '支付成功\n商户名称：麦当劳\n订单金额 ¥45.00\n优惠 ¥5.00\n实付金额 ¥40.00',
+        ),
+        closeTo(40.00, 0.001),
+      );
+    });
+
+    test('海底捞小票从末尾最终金额提取而非原单金额', () {
+      expect(
+        service.extractAmount(
+          '原单金額:\n215.00\n菜品金额:\n215.00\n优惠金额:\n-22.00\n赠菜金额\n-22.00\n应付金額:\n193.00\n餐饮消費金額:\n193.00\n打印:2026-05-23 22:22:25',
+        ),
+        closeTo(193.00, 0.001),
+      );
+    });
+
+    test('最终金额标签后方是打印时间时不提取秒数', () {
+      expect(
+        service.extractAmount(
+          '原单金额:\n215.00\n优惠金额:\n-22.00\n193.00\n应付金額:\n193.00\n餐饮消费金額:\n打印:2026-05-23 22:22:25',
+        ),
+        closeTo(193.00, 0.001),
+      );
     });
   });
 
@@ -196,7 +257,10 @@ void main() {
     });
 
     test('isSuccessful — 有日期时返回 true', () {
-      final result = OcrResult(date: DateTime(2026, 6, 8), rawText: '2026-06-08');
+      final result = OcrResult(
+        date: DateTime(2026, 6, 8),
+        rawText: '2026-06-08',
+      );
       expect(result.isSuccessful, true);
     });
   });
