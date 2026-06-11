@@ -7,9 +7,12 @@ import '../database/app_database.dart';
 
 /// 文件管理服务
 class FileService {
+  /// 可注入的基础目录（用于测试），默认使用应用文档目录
+  Future<Directory> Function() baseDirectory = getApplicationDocumentsDirectory;
+
   /// 获取记录的文件目录：{base}/records/YYYY-MM/YYYY-MM-DD_商户名/
   Future<Directory> getRecordDir(DateTime date, String merchant) async {
-    final base = await getApplicationDocumentsDirectory();
+    final base = await baseDirectory();
     final month =
         '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
     final day =
@@ -76,7 +79,7 @@ class FileService {
 
   /// 获取某月的所有记录目录
   Future<List<Directory>> getMonthRecordDirs(int year, int month) async {
-    final base = await getApplicationDocumentsDirectory();
+    final base = await baseDirectory();
     final monthStr =
         '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final monthDir = Directory('${base.path}/records/$monthStr');
@@ -87,7 +90,7 @@ class FileService {
 
   /// 打包某月的完整记录为 ZIP
   Future<String?> zipMonthRecords(int year, int month) async {
-    final base = await getApplicationDocumentsDirectory();
+    final base = await baseDirectory();
     final monthStr =
         '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final monthDir = Directory('${base.path}/records/$monthStr');
@@ -111,7 +114,7 @@ class FileService {
 
     final zipBytes = encoder.encode(archive);
 
-    final zipDir = await getApplicationDocumentsDirectory();
+    final zipDir = await baseDirectory();
     final zipPath = '${zipDir.path}/records/${monthStr}_报销文件.zip';
     await File(zipPath).writeAsBytes(zipBytes);
     return zipPath;
@@ -162,7 +165,7 @@ class FileService {
 
     final zipBytes = encoder.encode(archive);
 
-    final base = await getApplicationDocumentsDirectory();
+    final base = await baseDirectory();
     final monthStr =
         '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final zipDir = Directory('${base.path}/records');
@@ -184,7 +187,7 @@ class FileService {
 
   /// 删除全部记录文件
   Future<void> deleteAllRecordFiles() async {
-    final base = await getApplicationDocumentsDirectory();
+    final base = await baseDirectory();
     final recordsDir = Directory('${base.path}/records');
     if (await recordsDir.exists()) {
       await recordsDir.delete(recursive: true);
