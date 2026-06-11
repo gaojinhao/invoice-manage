@@ -25,7 +25,10 @@ void main() {
     });
 
     test('isSuccessful — 有日期时返回 true', () {
-      final result = OcrResult(date: DateTime(2026, 6, 8), rawText: '2026-06-08');
+      final result = OcrResult(
+        date: DateTime(2026, 6, 8),
+        rawText: '2026-06-08',
+      );
       expect(result.isSuccessful, true);
     });
   });
@@ -59,7 +62,6 @@ void main() {
     // 在 CI 中可用 flutter drive 或 firebase test lab
 
     test('识别小票文本 — 提取商户名（超市前缀）', () {
-      const text = '华联超市\n地址：北京市朝阳区\n合计：128.00';
       // 需要通过 recognizeImage 传图片文件来测试
       // 单元测试阶段暂不覆盖
     });
