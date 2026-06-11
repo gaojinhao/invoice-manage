@@ -194,4 +194,80 @@ void main() {
       expect(sent, false);
     });
   });
+
+  group('EmailService — verifyConnectionDetailed 纯逻辑验证', () {
+    late EmailService emailService;
+
+    setUp(() {
+      emailService = EmailService();
+    });
+
+    test('邮箱格式不正确 — 缺少 @ 符号', () async {
+      final result = await emailService.verifyConnectionDetailed(
+        'notanemail',
+        'password123',
+        'imap.qq.com',
+        993,
+      );
+
+      expect(result.isSuccess, false);
+      expect(result.message, '邮箱格式不正确');
+    });
+
+    test('邮箱格式不正确 — @ 后域名为空', () async {
+      final result = await emailService.verifyConnectionDetailed(
+        'user@',
+        'password123',
+        'imap.qq.com',
+        993,
+      );
+
+      expect(result.isSuccess, false);
+      expect(result.message, '邮箱格式不正确');
+    });
+
+    test('授权码为空时返回失败', () async {
+      final result = await emailService.verifyConnectionDetailed(
+        'user@qq.com',
+        '',
+        'imap.qq.com',
+        993,
+      );
+
+      expect(result.isSuccess, false);
+      expect(result.message, '授权码不能为空');
+    });
+
+    test('邮箱仅含 @ 时也判定格式不正确', () async {
+      final result = await emailService.verifyConnectionDetailed(
+        '@',
+        'password123',
+        'imap.qq.com',
+        993,
+      );
+
+      expect(result.isSuccess, false);
+      // @ 前为空不算格式错误？split('@').last gives empty string
+      expect(result.message, '邮箱格式不正确');
+    });
+
+    test('不可达服务器返回 SocketException 提示', () async {
+      final result = await emailService.verifyConnectionDetailed(
+        'user@qq.com',
+        'password123',
+        'invalid.server.example.invalid',
+        993,
+      );
+
+      expect(result.isSuccess, false);
+      // 可能是 SocketException 或 TimeoutException，取决于网络
+      expect(
+        result.message,
+        anyOf(
+          contains('无法连接 IMAP 服务器'),
+          contains('连接超时'),
+        ),
+      );
+    });
+  });
 }
