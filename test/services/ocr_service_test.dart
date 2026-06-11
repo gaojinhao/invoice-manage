@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:mocktail/mocktail.dart';
@@ -53,6 +55,16 @@ void main() {
     test('service 创建和销毁不抛异常', () {
       // 基本生命周期验证
       expect(service, isNotNull);
+    });
+
+    // T14: recognizeImage 错误处理
+    test('recognizeImage — 不存在文件返回空结果（不抛异常）', () async {
+      final nonExistentFile = File('/nonexistent/path_ocr_test.jpg');
+      final result = await service.recognizeImage(nonExistentFile);
+
+      // 文件不存在或平台通道失败时应返回空 OcrResult，不崩溃
+      expect(result.isSuccessful, false);
+      expect(result.rawText, isEmpty);
     });
   });
 
