@@ -1,19 +1,38 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/database/app_database.dart';
 import 'package:invoice_app/database/tables.dart';
 
 import '../helpers/mocks.dart';
 
+/// Helper: create a record and return it
+Future<ConsumptionRecord> _create(
+  AppDatabase db, {
+  DateTime? date,
+  String merchant = '测试超市',
+  double amount = 42.5,
+  String? receiptImg,
+  String? notes,
+}) async {
+  return db.createRecord(
+    date: date ?? DateTime(2026, 6, 8),
+    merchant: merchant,
+    amount: amount,
+    receiptImg: receiptImg,
+    notes: notes,
+  );
+}
+
 void main() {
-  group('AppDatabase — 状态推导', () {
+  // ============================================================
+  // Static method tests (no DB needed)
+  // ============================================================
+  group('AppDatabase — 状态推导 (static)', () {
     test('三证齐全时推导为 complete', () {
       final status = AppDatabase.statusForFiles(
         receiptImg: '/path/receipt.jpg',
         paymentImg: '/path/payment.jpg',
         invoicePdf: '/path/invoice.pdf',
       );
-
       expect(status, RecordStatus.complete);
     });
 
@@ -23,7 +42,6 @@ void main() {
         paymentImg: null,
         invoicePdf: '/path/invoice.pdf',
       );
-
       expect(status, RecordStatus.pendingPayment);
     });
 
@@ -33,7 +51,6 @@ void main() {
         paymentImg: '/path/payment.jpg',
         invoicePdf: null,
       );
-
       expect(status, RecordStatus.pendingInvoice);
     });
 
@@ -46,199 +63,385 @@ void main() {
           invoicePdf: '/path/invoice.pdf',
         ),
       );
-
       expect(status, RecordStatus.archived);
     });
-  });
 
-  group('AppDatabase — 状态查询', () {
-    late MockAppDatabase mockDb;
-
-    setUp(() {
-      mockDb = MockAppDatabase();
-    });
-
-    test('getRecordsByMonth 返回指定月份数据', () async {
-      final records = [
-        makeRecord(id: 'r1', date: DateTime(2026, 6, 1), month: '2026-06'),
-        makeRecord(id: 'r2', date: DateTime(2026, 6, 15), month: '2026-06'),
-      ];
-      when(
-        () => mockDb.getRecordsByMonth(2026, 6),
-      ).thenAnswer((_) async => records);
-
-      final result = await mockDb.getRecordsByMonth(2026, 6);
-      expect(result.length, 2);
-    });
-
-    test('getRecordsNeedingPayment 返回待补支付记录', () async {
-      final records = [
-        makeRecord(id: 'r1', status: RecordStatus.pendingPayment),
-        makeRecord(id: 'r2', status: RecordStatus.pendingPayment),
-      ];
-      when(
-        () => mockDb.getRecordsNeedingPayment(),
-      ).thenAnswer((_) async => records);
-
-      final result = await mockDb.getRecordsNeedingPayment();
-      expect(result.length, 2);
-      expect(
-        result.every((r) => r.status == RecordStatus.pendingPayment),
-        true,
+    test('全为空时推导为 pendingPayment', () {
+      final status = AppDatabase.statusForFiles(
+        receiptImg: null,
+        paymentImg: null,
+        invoicePdf: null,
       );
+      expect(status, RecordStatus.pendingPayment);
     });
 
-    test('getRecordsNeedingInvoice 返回待开发票记录', () async {
-      final records = [
-        makeRecord(id: 'r1', status: RecordStatus.pendingInvoice),
-      ];
-      when(
-        () => mockDb.getRecordsNeedingInvoice(),
-      ).thenAnswer((_) async => records);
-
-      final result = await mockDb.getRecordsNeedingInvoice();
-      expect(result.length, 1);
-      expect(result.first.status, RecordStatus.pendingInvoice);
-    });
-
-    test('getCompleteRecords 只返回三证齐全的记录', () async {
-      final records = [
-        makeRecord(id: 'r1', status: RecordStatus.complete),
-        makeRecord(id: 'r2', status: RecordStatus.complete),
-      ];
-      when(() => mockDb.getCompleteRecords()).thenAnswer((_) async => records);
-
-      final result = await mockDb.getCompleteRecords();
-      expect(result.every((r) => r.status == RecordStatus.complete), true);
-    });
-
-    test('getStatusCounts 返回正确的状态分布', () async {
-      when(() => mockDb.getStatusCounts()).thenAnswer(
-        (_) async => {
-          RecordStatus.pendingPayment: 1,
-          RecordStatus.pendingInvoice: 1,
-          RecordStatus.complete: 2,
-          RecordStatus.archived: 0,
-        },
+    test('仅结账单推导为 pendingPayment（无支付记录）', () {
+      final status = AppDatabase.statusForFiles(
+        receiptImg: '/receipt.jpg',
+        paymentImg: null,
+        invoicePdf: null,
       );
-
-      final counts = await mockDb.getStatusCounts();
-      expect(counts[RecordStatus.pendingPayment], 1);
-      expect(counts[RecordStatus.complete], 2);
-      expect(counts[RecordStatus.archived], 0);
+      expect(status, RecordStatus.pendingPayment);
     });
   });
 
-  group('AppDatabase — 状态更新', () {
-    late MockAppDatabase mockDb;
+  // ============================================================
+  // In-memory database tests (T3)
+  // ============================================================
+  group('AppDatabase — in-memory (createRecord)', () {
+    late AppDatabase db;
 
-    setUp(() {
-      mockDb = MockAppDatabase();
+    setUp(() async {
+      db = AppDatabase.test();
     });
 
-    test('updatePaymentImage 更新支付截图并更改状态为 pendingInvoice', () async {
-      when(
-        () => mockDb.updatePaymentImage('rec_001', '/path/payment.jpg'),
-      ).thenAnswer((_) async => {});
-
-      await mockDb.updatePaymentImage('rec_001', '/path/payment.jpg');
-      verify(
-        () => mockDb.updatePaymentImage('rec_001', '/path/payment.jpg'),
-      ).called(1);
+    tearDown(() async {
+      await db.close();
     });
 
-    test('updateInvoicePdf 更新发票并更改状态为 complete', () async {
-      when(
-        () => mockDb.updateInvoicePdf('rec_001', '/path/invoice.pdf'),
-      ).thenAnswer((_) async => {});
-
-      await mockDb.updateInvoicePdf('rec_001', '/path/invoice.pdf');
-      verify(
-        () => mockDb.updateInvoicePdf('rec_001', '/path/invoice.pdf'),
-      ).called(1);
+    test('创建记录返回正确数据', () async {
+      final record = await _create(db, merchant: '华联超市', amount: 128.5);
+      expect(record.merchant, '华联超市');
+      expect(record.amount, 128.5);
+      expect(record.status, RecordStatus.pendingPayment);
+      expect(record.month, '2026-06');
+      expect(record.id, isNotEmpty);
     });
 
-    test('markArchived 更改状态为 archived', () async {
-      when(() => mockDb.markArchived('rec_001')).thenAnswer((_) async => {});
-
-      await mockDb.markArchived('rec_001');
-      verify(() => mockDb.markArchived('rec_001')).called(1);
+    test('自动生成 month 字段（跨月）', () async {
+      final r1 = await _create(db, date: DateTime(2026, 1, 15), merchant: '店A');
+      final r2 = await _create(db, date: DateTime(2026, 12, 31), merchant: '店B');
+      expect(r1.month, '2026-01');
+      expect(r2.month, '2026-12');
     });
 
-    test('deleteRecord 删除指定记录', () async {
-      when(() => mockDb.deleteRecord('rec_001')).thenAnswer((_) async => {});
-
-      await mockDb.deleteRecord('rec_001');
-      verify(() => mockDb.deleteRecord('rec_001')).called(1);
+    test('可保存 receiptImg 和 notes', () async {
+      final record = await _create(
+        db,
+        merchant: '测试店',
+        receiptImg: '/path/photo.jpg',
+        notes: '备注内容',
+      );
+      expect(record.receiptImg, '/path/photo.jpg');
+      expect(record.notes, '备注内容');
     });
   });
 
-  group('AppDatabase — 创建与查询', () {
-    late MockAppDatabase mockDb;
+  group('AppDatabase — in-memory (查询方法)', () {
+    late AppDatabase db;
 
-    setUp(() {
-      mockDb = MockAppDatabase();
+    setUp(() async {
+      db = AppDatabase.test();
     });
 
-    test('createRecord 返回新创建的记录', () async {
-      final newRecord = makeRecord(
-        id: 'rec_new',
-        merchant: '新超市',
-        amount: 66.6,
-        status: RecordStatus.pendingPayment,
-      );
-      when(
-        () => mockDb.createRecord(
-          date: any(named: 'date'),
-          merchant: any(named: 'merchant'),
-          amount: any(named: 'amount'),
-        ),
-      ).thenAnswer((_) async => newRecord);
-
-      final result = await mockDb.createRecord(
-        date: DateTime(2026, 6, 8),
-        merchant: '新超市',
-        amount: 66.6,
-      );
-
-      expect(result.id, 'rec_new');
-      expect(result.merchant, '新超市');
-      expect(result.status, RecordStatus.pendingPayment);
+    tearDown(() async {
+      await db.close();
     });
 
-    test('getMonthlyTotal 计算指定月份总额', () async {
-      when(
-        () => mockDb.getMonthlyTotal(2026, 6),
-      ).thenAnswer((_) async => 456.0);
+    // --- getRecordsByMonth ---
+    test('getRecordsByMonth 返回指定月份数据，按日期倒序', () async {
+      await _create(db, date: DateTime(2026, 6, 1), merchant: '店A');
+      await _create(db, date: DateTime(2026, 6, 15), merchant: '店B');
+      await _create(db, date: DateTime(2026, 5, 20), merchant: '店C');
 
-      final total = await mockDb.getMonthlyTotal(2026, 6);
-      expect(total, 456.0);
+      final june = await db.getRecordsByMonth(2026, 6);
+      expect(june.length, 2);
+      // 按日期倒序：15 日在前
+      expect(june[0].merchant, '店B');
+      expect(june[1].merchant, '店A');
     });
 
+    test('getRecordsByMonth 无数据返回空列表', () async {
+      final result = await db.getRecordsByMonth(2026, 9);
+      expect(result, isEmpty);
+    });
+
+    // --- getMonthlyTotal ---
+    test('getMonthlyTotal 计算正确总额', () async {
+      await _create(db, date: DateTime(2026, 6, 1), amount: 100);
+      await _create(db, date: DateTime(2026, 6, 15), amount: 200);
+      await _create(db, date: DateTime(2026, 5, 1), amount: 50);
+
+      final total = await db.getMonthlyTotal(2026, 6);
+      expect(total, 300.0);
+    });
+
+    test('getMonthlyTotal 无记录时返回 0.0', () async {
+      final total = await db.getMonthlyTotal(2026, 9);
+      expect(total, 0.0);
+    });
+
+    // --- getStatusCounts ---
+    test('getStatusCounts 返回全局状态分布', () async {
+      await _create(db, merchant: '店A'); // pendingPayment (default)
+      await _create(db, merchant: '店B'); // pendingPayment
+      final counts = await db.getStatusCounts();
+      expect(counts[RecordStatus.pendingPayment], 2);
+      expect(counts[RecordStatus.complete], 0);
+    });
+
+    // --- getStatusCountsByMonth ---
+    test('getStatusCountsByMonth 仅统计指定月份', () async {
+      await _create(db, date: DateTime(2026, 6, 1), merchant: '六月店');
+      await _create(db, date: DateTime(2026, 5, 1), merchant: '五月店');
+
+      final juneCounts = await db.getStatusCountsByMonth(2026, 6);
+      final mayCounts = await db.getStatusCountsByMonth(2026, 5);
+      expect(juneCounts[RecordStatus.pendingPayment], 1);
+      expect(mayCounts[RecordStatus.pendingPayment], 1);
+    });
+
+    // --- getAllRecords ---
+    test('getAllRecords 返回所有记录按日期倒序', () async {
+      await _create(db, date: DateTime(2026, 6, 1), merchant: '早');
+      await _create(db, date: DateTime(2026, 6, 15), merchant: '晚');
+      await _create(db, date: DateTime(2026, 5, 20), merchant: '更早');
+
+      final all = await db.getAllRecords();
+      expect(all.length, 3);
+      expect(all[0].merchant, '晚');   // 2026-06-15
+      expect(all[1].merchant, '早');   // 2026-06-01
+      expect(all[2].merchant, '更早'); // 2026-05-20
+    });
+
+    // --- getMonthlyTrend ---
+    test('getMonthlyTrend 返回近 N 个月的趋势', () async {
+      await _create(db, date: DateTime(2026, 6, 1), amount: 100);
+      await _create(db, date: DateTime(2026, 5, 1), amount: 200);
+
+      final trend = await db.getMonthlyTrend(3);
+      expect(trend.length, 3);
+      // 最后一项是当前月
+      expect(trend.last.month, DateTime.now().month);
+    });
+
+    test('getMonthlyTrend monthsBack=0 返回空', () async {
+      final trend = await db.getMonthlyTrend(0);
+      expect(trend, isEmpty);
+    });
+
+    // --- searchRecords ---
     test('searchRecords 按商户名搜索', () async {
-      when(
-        () => mockDb.searchRecords('华联'),
-      ).thenAnswer((_) async => [makeRecord(id: 'r1', merchant: '华联超市')]);
+      await _create(db, merchant: '华联超市');
+      await _create(db, merchant: '永辉超市');
+      await _create(db, merchant: '华联便利店');
 
-      final results = await mockDb.searchRecords('华联');
-      expect(results.length, 1);
-      expect(results.first.merchant, '华联超市');
+      final results = await db.searchRecords('华联');
+      expect(results.length, 2);
     });
 
     test('searchRecords 按金额搜索', () async {
-      when(
-        () => mockDb.searchRecords('128'),
-      ).thenAnswer((_) async => [makeRecord(id: 'r2', amount: 128.0)]);
+      await _create(db, merchant: '店A', amount: 128);
+      await _create(db, merchant: '店B', amount: 256);
 
-      final results = await mockDb.searchRecords('128');
+      final results = await db.searchRecords('128');
       expect(results.length, 1);
+      expect(results.first.amount, 128);
+    });
+
+    test('searchRecords 按备注搜索', () async {
+      await _create(db, merchant: '店A', notes: '商务午餐');
+      await _create(db, merchant: '店B', notes: '个人消费');
+
+      final results = await db.searchRecords('商务');
+      expect(results.length, 1);
+      expect(results.first.notes, '商务午餐');
     });
 
     test('searchRecords 空关键词返回空列表', () async {
-      when(() => mockDb.searchRecords('')).thenAnswer((_) async => []);
-
-      final results = await mockDb.searchRecords('');
+      await _create(db, merchant: '店A');
+      final results = await db.searchRecords('');
       expect(results, isEmpty);
+    });
+
+    test('searchRecords 无匹配返回空列表', () async {
+      await _create(db, merchant: '店A');
+      final results = await db.searchRecords('不存在的商户');
+      expect(results, isEmpty);
+    });
+
+    // --- getRecordsNeedingPayment ---
+    test('getRecordsNeedingPayment 只返回 paymentImg==null 的非归档记录', () async {
+      final r = await _create(db, merchant: '缺支付');
+      // 默认 paymentImg=null, status=pendingPayment
+      final needs = await db.getRecordsNeedingPayment();
+      expect(needs.any((x) => x.id == r.id), true);
+    });
+
+    // --- getRecordsNeedingInvoice ---
+    test('getRecordsNeedingInvoice 返回有支付但缺发票的记录', () async {
+      final r = await _create(db, merchant: '缺发票');
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      final needs = await db.getRecordsNeedingInvoice();
+      expect(needs.any((x) => x.id == r.id), true);
+    });
+
+    // --- getCompleteRecords ---
+    test('getCompleteRecords 只返回三证齐全的非归档记录', () async {
+      final r = await _create(db, merchant: '齐全店', receiptImg: '/rec.jpg');
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      await db.updateInvoicePdf(r.id, '/inv.pdf');
+
+      final complete = await db.getCompleteRecords();
+      expect(complete.any((x) => x.id == r.id), true);
+    });
+  });
+
+  // ============================================================
+  // Mutation methods (real DB) — covers T1, T2, T8
+  // ============================================================
+  group('AppDatabase — in-memory (状态更新)', () {
+    late AppDatabase db;
+
+    setUp(() async {
+      db = AppDatabase.test();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    // --- updatePaymentImage ---
+    test('updatePaymentImage 更新截图并重新计算状态', () async {
+      final r = await _create(db, merchant: '测试店');
+      expect(r.status, RecordStatus.pendingPayment);
+
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      final updated = await db.getRecordsByMonth(2026, 6);
+      final record = updated.firstWhere((x) => x.id == r.id);
+      expect(record.paymentImg, '/pay.jpg');
+      // 有 receiptImg? null, paymentImg: yes, invoicePdf: null → pendingInvoice
+      expect(record.status, RecordStatus.pendingInvoice);
+    });
+
+    test('updatePaymentImage — 记录不存在时不抛异常', () async {
+      // Should not throw
+      await db.updatePaymentImage('nonexistent', '/pay.jpg');
+    });
+
+    // --- updateReceiptImage (T1) ---
+    test('updateReceiptImage 更新结账单并重新计算状态', () async {
+      final r = await _create(db, merchant: '测试店');
+      // 初始：receiptImg=null → pendingPayment
+      expect(r.status, RecordStatus.pendingPayment);
+
+      await db.updateReceiptImage(r.id, '/new_receipt.jpg');
+      final updated = await db.getRecordsByMonth(2026, 6);
+      final record = updated.firstWhere((x) => x.id == r.id);
+      expect(record.receiptImg, '/new_receipt.jpg');
+      // 仍为 pendingPayment（因为 paymentImg 仍为 null）
+      expect(record.status, RecordStatus.pendingPayment);
+    });
+
+    test('updateReceiptImage — 三证齐全后变 complete', () async {
+      final r = await _create(db, merchant: '测试店', receiptImg: '/old.jpg');
+      // 先加支付记录 → pendingInvoice
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      // 再加发票 → complete
+      await db.updateInvoicePdf(r.id, '/inv.pdf');
+      // 替换 receiptImg
+      await db.updateReceiptImage(r.id, '/new_receipt.jpg');
+
+      final updated = await db.getRecordsByMonth(2026, 6);
+      final record = updated.firstWhere((x) => x.id == r.id);
+      expect(record.receiptImg, '/new_receipt.jpg');
+      expect(record.status, RecordStatus.complete);
+    });
+
+    test('updateReceiptImage — 记录不存在时不抛异常', () async {
+      await db.updateReceiptImage('nonexistent', '/rec.jpg');
+    });
+
+    // --- updateInvoicePdf ---
+    test('updateInvoicePdf 更新发票并重新计算状态', () async {
+      final r = await _create(db, merchant: '测试店', receiptImg: '/rec.jpg');
+      await db.updatePaymentImage(r.id, '/pay.jpg'); // → pendingInvoice
+      await db.updateInvoicePdf(r.id, '/inv.pdf');   // → complete
+
+      final updated = await db.getRecordsByMonth(2026, 6);
+      final record = updated.firstWhere((x) => x.id == r.id);
+      expect(record.invoicePdf, '/inv.pdf');
+      expect(record.status, RecordStatus.complete);
+    });
+
+    test('updateInvoicePdf — 记录不存在时不抛异常', () async {
+      await db.updateInvoicePdf('nonexistent', '/inv.pdf');
+    });
+
+    // --- markArchived ---
+    test('markArchived 标记为已归档', () async {
+      final r = await _create(db, merchant: '待归档');
+      await db.markArchived(r.id);
+
+      final updated = await db.getRecordsByMonth(2026, 6);
+      final record = updated.firstWhere((x) => x.id == r.id);
+      expect(record.status, RecordStatus.archived);
+    });
+
+    // --- deleteRecord ---
+    test('deleteRecord 删除指定记录', () async {
+      final r = await _create(db, merchant: '待删除');
+      await _create(db, merchant: '保留');
+
+      await db.deleteRecord(r.id);
+      final remaining = await db.getAllRecords();
+      expect(remaining.length, 1);
+      expect(remaining.first.merchant, '保留');
+    });
+
+    // --- deleteAllRecords (T2) ---
+    test('deleteAllRecords 删除所有记录', () async {
+      await _create(db, merchant: '店A');
+      await _create(db, merchant: '店B');
+
+      await db.deleteAllRecords();
+      final all = await db.getAllRecords();
+      expect(all, isEmpty);
+    });
+  });
+
+  group('AppDatabase — in-memory (complete 流转)', () {
+    late AppDatabase db;
+
+    setUp(() async {
+      db = AppDatabase.test();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('完整三证补齐流程: pendingPayment → pendingInvoice → complete', () async {
+      // Step 1: create with receipt only → pendingPayment
+      final r = await _create(db, merchant: '流程测试', receiptImg: '/rec.jpg');
+      expect(r.status, RecordStatus.pendingPayment);
+
+      // Step 2: add payment → pendingInvoice
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      var cur = (await db.getAllRecords()).firstWhere((x) => x.id == r.id);
+      expect(cur.status, RecordStatus.pendingInvoice);
+
+      // Step 3: add invoice → complete
+      await db.updateInvoicePdf(r.id, '/inv.pdf');
+      cur = (await db.getAllRecords()).firstWhere((x) => x.id == r.id);
+      expect(cur.status, RecordStatus.complete);
+
+      // Step 4: archive
+      await db.markArchived(r.id);
+      cur = (await db.getAllRecords()).firstWhere((x) => x.id == r.id);
+      expect(cur.status, RecordStatus.archived);
+    });
+
+    test('已归档记录不会在三证补齐后变回 complete', () async {
+      final r = await _create(db, merchant: '归档测试', receiptImg: '/rec.jpg');
+      await db.updatePaymentImage(r.id, '/pay.jpg');
+      await db.updateInvoicePdf(r.id, '/inv.pdf');
+      await db.markArchived(r.id);
+
+      // 尝试再更新文件 → 仍保持 archived
+      await db.updateReceiptImage(r.id, '/new_rec.jpg');
+      var cur = (await db.getAllRecords()).firstWhere((x) => x.id == r.id);
+      expect(cur.status, RecordStatus.archived);
     });
   });
 }

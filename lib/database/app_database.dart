@@ -15,6 +15,9 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// 用于测试的 in-memory 数据库
+  AppDatabase.test() : super(NativeDatabase.memory());
+
   @override
   int get schemaVersion => 1;
 
