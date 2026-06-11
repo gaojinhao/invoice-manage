@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:provider/provider.dart';
 
 import '../services/email_service.dart';
 
@@ -17,10 +16,9 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _sendToCtrl = TextEditingController();
-  EmailService _emailService = EmailService();
+  final EmailService _emailService = EmailService();
   bool _loading = true;
   bool _testing = false;
-  bool _isConfigured = false;
 
   @override
   void initState() {
@@ -46,11 +44,14 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
     _sendToCtrl.text = sendTo;
 
     if (email.isNotEmpty && password.isNotEmpty) {
-      _emailService.configure(EmailConfig(
-        email: email,
-        password: password,
-        imapServer: _emailService.getImapServer(email),
-      ));
+      _emailService.configure(
+        EmailConfig(
+          email: email,
+          password: password,
+          imapServer: _emailService.getImapServer(email),
+          sendTo: sendTo.isNotEmpty ? sendTo : null,
+        ),
+      );
     }
 
     setState(() => _loading = false);
@@ -58,53 +59,59 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
 
   Future<void> _saveConfig() async {
     if (_emailCtrl.text.isEmpty || _passwordCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写邮箱和授权码')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请填写邮箱和授权码')));
       return;
     }
 
-    await _storage.write(key: 'email_addr', value: _emailCtrl.text);
-    await _storage.write(key: 'email_pass', value: _passwordCtrl.text);
-    await _storage.write(key: 'send_to', value: _sendToCtrl.text);
+    final email = _emailCtrl.text.trim();
+    final sendTo = _sendToCtrl.text.trim();
 
-    _emailService.configure(EmailConfig(
-      email: _emailCtrl.text,
-      password: _passwordCtrl.text,
-      imapServer: _emailService.getImapServer(_emailCtrl.text),
-      sendTo: _sendToCtrl.text.isNotEmpty ? _sendToCtrl.text : null,
-    ));
+    await _storage.write(key: 'email_addr', value: email);
+    await _storage.write(key: 'email_pass', value: _passwordCtrl.text);
+    await _storage.write(key: 'send_to', value: sendTo);
+
+    _emailService.configure(
+      EmailConfig(
+        email: email,
+        password: _passwordCtrl.text,
+        imapServer: _emailService.getImapServer(email),
+        sendTo: sendTo.isNotEmpty ? sendTo : null,
+      ),
+    );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('配置已保存 ✓')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('配置已保存 ✓')));
     }
   }
 
   Future<void> _testConnection() async {
     if (_emailCtrl.text.isEmpty || _passwordCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先填写邮箱和授权码')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请先填写邮箱和授权码')));
       return;
     }
 
     setState(() => _testing = true);
 
     try {
-      final ok = await _emailService.verifyConnection(
-        _emailCtrl.text,
+      final email = _emailCtrl.text.trim();
+      final result = await _emailService.verifyConnectionDetailed(
+        email,
         _passwordCtrl.text,
-        _emailService.getImapServer(_emailCtrl.text),
-        _emailService.getImapPort(_emailCtrl.text),
+        _emailService.getImapServer(email),
+        _emailService.getImapPort(email),
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ok ? '连接成功 ✓ 邮箱配置正确' : '连接失败，请检查邮箱和授权码'),
-            backgroundColor: ok ? Colors.green : Colors.red,
+            content: Text(result.message),
+            backgroundColor: result.isSuccess ? Colors.green : Colors.red,
           ),
         );
       }
@@ -116,15 +123,15 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
       }
     }
 
-    setState(() => _testing = false);
+    if (mounted) {
+      setState(() => _testing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -142,9 +149,15 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+                      Icon(
+                        Icons.info_outline,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                       const SizedBox(width: 8),
-                      const Text('配置说明', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        '配置说明',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -197,7 +210,9 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
           const SizedBox(height: 8),
           Text(
             '如果不填，默认发送到配置的邮箱地址',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey),
           ),
 
           const SizedBox(height: 24),
@@ -207,9 +222,14 @@ class _EmailConfigScreenState extends State<EmailConfigScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _testing ? null : _testConnection,
-                  icon: _testing
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.wifi_find),
+                  icon:
+                      _testing
+                          ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Icon(Icons.wifi_find),
                   label: const Text('测试连接'),
                 ),
               ),
