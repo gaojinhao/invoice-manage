@@ -34,7 +34,8 @@ class AppDatabase extends _$AppDatabase {
     String? notes,
   }) async {
     final now = DateTime.now();
-    final month = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
+    final month =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
     final record = ConsumptionRecordsCompanion.insert(
       date: date,
       merchant: merchant,
@@ -49,70 +50,141 @@ class AppDatabase extends _$AppDatabase {
     await into(consumptionRecords).insert(record);
     // 返回刚创建的记录（按时间最近的一条匹配）
     return (select(consumptionRecords)
-      ..where((t) => t.merchant.equals(merchant))
-      ..where((t) => t.date.equals(date))
-      ..where((t) => t.amount.equals(amount))
-      ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)])
-      ..limit(1)
-    ).getSingle();
+          ..where((t) => t.merchant.equals(merchant))
+          ..where((t) => t.date.equals(date))
+          ..where((t) => t.amount.equals(amount))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+          ])
+          ..limit(1))
+        .getSingle();
   }
 
   /// 查询某月的消费记录
   Future<List<ConsumptionRecord>> getRecordsByMonth(int year, int month) async {
     final monthStr = '$year-${month.toString().padLeft(2, '0')}';
     return (select(consumptionRecords)
-      ..where((t) => t.month.equals(monthStr))
-      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
-    ).get();
+          ..where((t) => t.month.equals(monthStr))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+          ]))
+        .get();
   }
 
   /// 查询某月的消费总额
   Future<double> getMonthlyTotal(int year, int month) async {
     final monthStr = '$year-${month.toString().padLeft(2, '0')}';
-    final records = await (select(consumptionRecords)
-      ..where((t) => t.month.equals(monthStr))
-    ).get();
+    final records =
+        await (select(consumptionRecords)
+          ..where((t) => t.month.equals(monthStr))).get();
     return records.fold<double>(0.0, (sum, r) => sum + r.amount);
   }
 
   /// 查询各状态的数量统计
   Future<Map<RecordStatus, int>> getStatusCounts() async {
     final all = await select(consumptionRecords).get();
+    return _countStatuses(all);
+  }
+
+  /// 查询指定月份各状态的数量统计
+  Future<Map<RecordStatus, int>> getStatusCountsByMonth(
+    int year,
+    int month,
+  ) async {
+    final records = await getRecordsByMonth(year, month);
+    return _countStatuses(records);
+  }
+
+  Map<RecordStatus, int> _countStatuses(List<ConsumptionRecord> records) {
     final counts = <RecordStatus, int>{};
     for (final status in RecordStatus.values) {
-      counts[status] = all.where((r) => r.status == status).length;
+      counts[status] =
+          records.where((r) => effectiveStatusForRecord(r) == status).length;
     }
     return counts;
   }
 
+  /// 根据三证文件字段推导记录的有效状态。
+  static RecordStatus statusForFiles({
+    required String? receiptImg,
+    required String? paymentImg,
+    required String? invoicePdf,
+    RecordStatus? currentStatus,
+  }) {
+    if (currentStatus == RecordStatus.archived) {
+      return RecordStatus.archived;
+    }
+    if (receiptImg != null && paymentImg != null && invoicePdf != null) {
+      return RecordStatus.complete;
+    }
+    if (paymentImg != null) {
+      return RecordStatus.pendingInvoice;
+    }
+    return RecordStatus.pendingPayment;
+  }
+
+  static RecordStatus effectiveStatusForRecord(ConsumptionRecord record) {
+    return statusForFiles(
+      receiptImg: record.receiptImg,
+      paymentImg: record.paymentImg,
+      invoicePdf: record.invoicePdf,
+      currentStatus: record.status,
+    );
+  }
+
   /// 获取所有"待补支付记录"的记录
   Future<List<ConsumptionRecord>> getRecordsNeedingPayment() async {
-    return (select(consumptionRecords)
-      ..where((t) => t.status.equals(RecordStatus.pendingPayment.name))
-    ).get();
+    final records = await select(consumptionRecords).get();
+    return records
+        .where((r) => r.status != RecordStatus.archived && r.paymentImg == null)
+        .toList();
   }
 
   /// 获取所有"待开发票"的记录
   Future<List<ConsumptionRecord>> getRecordsNeedingInvoice() async {
-    return (select(consumptionRecords)
-      ..where((t) => t.status.equals(RecordStatus.pendingInvoice.name))
-    ).get();
+    final records = await select(consumptionRecords).get();
+    return records
+        .where(
+          (r) =>
+              r.status != RecordStatus.archived &&
+              r.paymentImg != null &&
+              r.invoicePdf == null,
+        )
+        .toList();
   }
 
   /// 获取所有"三证齐全"的记录
   Future<List<ConsumptionRecord>> getCompleteRecords() async {
-    return (select(consumptionRecords)
-      ..where((t) => t.status.equals(RecordStatus.complete.name))
-    ).get();
+    final records = await select(consumptionRecords).get();
+    return records
+        .where(
+          (r) =>
+              r.status != RecordStatus.archived &&
+              r.receiptImg != null &&
+              r.paymentImg != null &&
+              r.invoicePdf != null,
+        )
+        .toList();
   }
 
   /// 更新支付记录截图
   Future<void> updatePaymentImage(String id, String imagePath) async {
     final now = DateTime.now();
+    final current =
+        await (select(consumptionRecords)
+          ..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (current == null) return;
+    final status = statusForFiles(
+      receiptImg: current.receiptImg,
+      paymentImg: imagePath,
+      invoicePdf: current.invoicePdf,
+      currentStatus: current.status,
+    );
     await (update(consumptionRecords)..where((t) => t.id.equals(id))).write(
       ConsumptionRecordsCompanion(
         paymentImg: Value(imagePath),
-        status: Value(RecordStatus.pendingInvoice),
+        status: Value(status),
         updatedAt: Value(now),
       ),
     );
@@ -157,16 +229,22 @@ class AppDatabase extends _$AppDatabase {
     await (delete(consumptionRecords)..where((t) => t.id.equals(id))).go();
   }
 
+  /// 删除所有消费记录
+  Future<void> deleteAllRecords() async {
+    await delete(consumptionRecords).go();
+  }
+
   /// 获取所有记录（按日期倒序）
   Future<List<ConsumptionRecord>> getAllRecords() async {
-    return (select(consumptionRecords)
-      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
-    ).get();
+    return (select(consumptionRecords)..orderBy([
+      (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+    ])).get();
   }
 
   /// 获取近 N 个月的月度总额趋势
   Future<List<({int year, int month, double total})>> getMonthlyTrend(
-      int monthsBack) async {
+    int monthsBack,
+  ) async {
     final now = DateTime.now();
     final results = <({int year, int month, double total})>[];
     for (var i = monthsBack - 1; i >= 0; i--) {
@@ -184,18 +262,20 @@ class AppDatabase extends _$AppDatabase {
     // 尝试解析数字
     final amount = double.tryParse(q);
     return (select(consumptionRecords)
-      ..where((t) {
-        final conditions = <Expression<bool>>[
-          t.merchant.contains(q),
-          t.notes.contains(q),
-        ];
-        if (amount != null) {
-          conditions.add(t.amount.equals(amount));
-        }
-        return conditions.reduce((a, b) => a | b);
-      })
-      ..orderBy([(t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc)])
-    ).get();
+          ..where((t) {
+            final conditions = <Expression<bool>>[
+              t.merchant.contains(q),
+              t.notes.contains(q),
+            ];
+            if (amount != null) {
+              conditions.add(t.amount.equals(amount));
+            }
+            return conditions.reduce((a, b) => a | b);
+          })
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+          ]))
+        .get();
   }
 }
 

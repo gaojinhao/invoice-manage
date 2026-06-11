@@ -39,9 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     final db = context.read<AppDatabase>();
-    final records = await db.getRecordsByMonth(_currentMonth.year, _currentMonth.month);
-    final total = await db.getMonthlyTotal(_currentMonth.year, _currentMonth.month);
-    final counts = await db.getStatusCounts();
+    final records = await db.getRecordsByMonth(
+      _currentMonth.year,
+      _currentMonth.month,
+    );
+    final total = await db.getMonthlyTotal(
+      _currentMonth.year,
+      _currentMonth.month,
+    );
+    final counts = await db.getStatusCountsByMonth(
+      _currentMonth.year,
+      _currentMonth.month,
+    );
 
     setState(() {
       _records = records;
