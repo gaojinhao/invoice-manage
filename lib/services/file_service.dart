@@ -1,16 +1,19 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
+
+import '../database/app_database.dart';
 
 /// 文件管理服务
 class FileService {
   /// 获取记录的文件目录：{base}/records/YYYY-MM/YYYY-MM-DD_商户名/
   Future<Directory> getRecordDir(DateTime date, String merchant) async {
     final base = await getApplicationDocumentsDirectory();
-    final month = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
-    final day = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final month =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
+    final day =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final safeMerchant = merchant.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     final dir = Directory('${base.path}/records/$month/${day}_$safeMerchant');
     if (!await dir.exists()) {
@@ -20,7 +23,11 @@ class FileService {
   }
 
   /// 保存结账单照片
-  Future<String> saveReceiptImage(File source, DateTime date, String merchant) async {
+  Future<String> saveReceiptImage(
+    File source,
+    DateTime date,
+    String merchant,
+  ) async {
     final dir = await getRecordDir(date, merchant);
     final target = '${dir.path}/结账单.jpg';
     await source.copy(target);
@@ -28,7 +35,11 @@ class FileService {
   }
 
   /// 保存支付记录截图
-  Future<String> savePaymentImage(File source, DateTime date, String merchant) async {
+  Future<String> savePaymentImage(
+    File source,
+    DateTime date,
+    String merchant,
+  ) async {
     final dir = await getRecordDir(date, merchant);
     final target = '${dir.path}/支付记录.jpg';
     await source.copy(target);
@@ -36,17 +47,38 @@ class FileService {
   }
 
   /// 保存发票 PDF
-  Future<String> saveInvoicePdf(File source, DateTime date, String merchant) async {
+  Future<String> saveInvoicePdf(
+    File source,
+    DateTime date,
+    String merchant,
+  ) async {
+    return saveInvoiceFile(source, date, merchant, extension: '.pdf');
+  }
+
+  /// 保存发票文件（PDF 或图片）
+  Future<String> saveInvoiceFile(
+    File source,
+    DateTime date,
+    String merchant, {
+    String? extension,
+  }) async {
     final dir = await getRecordDir(date, merchant);
-    final target = '${dir.path}/发票.pdf';
-    await source.copy(target);
+    final ext = _normalizeExtension(
+      extension ?? _extensionOf(source.path, fallback: '.pdf'),
+    );
+    final target = '${dir.path}/发票$ext';
+    if (source.path != target) {
+      await _deleteInvoiceFiles(dir);
+      await source.copy(target);
+    }
     return target;
   }
 
   /// 获取某月的所有记录目录
   Future<List<Directory>> getMonthRecordDirs(int year, int month) async {
     final base = await getApplicationDocumentsDirectory();
-    final monthStr = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+    final monthStr =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final monthDir = Directory('${base.path}/records/$monthStr');
     if (!await monthDir.exists()) return [];
     final entities = await monthDir.list().toList();
@@ -87,5 +119,49 @@ class FileService {
     if (await dir.exists()) {
       await dir.delete(recursive: true);
     }
+  }
+
+  /// 删除全部记录文件
+  Future<void> deleteAllRecordFiles() async {
+    final base = await getApplicationDocumentsDirectory();
+    final recordsDir = Directory('${base.path}/records');
+    if (await recordsDir.exists()) {
+      await recordsDir.delete(recursive: true);
+    }
+  }
+
+  Future<void> _deleteInvoiceFiles(Directory dir) async {
+    if (!await dir.exists()) return;
+    await for (final entity in dir.list()) {
+      if (entity is File) {
+        final name = entity.uri.pathSegments.last;
+        if (name.startsWith('发票.')) {
+          await entity.delete();
+        }
+      }
+    }
+  }
+
+  String _recordFolderName(ConsumptionRecord record) {
+    final day =
+        '${record.date.year.toString().padLeft(4, '0')}-${record.date.month.toString().padLeft(2, '0')}-${record.date.day.toString().padLeft(2, '0')}';
+    final safeMerchant = record.merchant.replaceAll(
+      RegExp(r'[\\/:*?"<>|]'),
+      '_',
+    );
+    return '${day}_$safeMerchant';
+  }
+
+  String _extensionOf(String path, {required String fallback}) {
+    final name = path.split(Platform.pathSeparator).last;
+    final dot = name.lastIndexOf('.');
+    if (dot < 0 || dot == name.length - 1) return fallback;
+    return _normalizeExtension(name.substring(dot));
+  }
+
+  String _normalizeExtension(String ext) {
+    final normalized =
+        ext.startsWith('.') ? ext.toLowerCase() : '.${ext.toLowerCase()}';
+    return normalized.replaceAll(RegExp(r'[^a-z0-9.]'), '');
   }
 }

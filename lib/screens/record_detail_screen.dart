@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -7,7 +8,6 @@ import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
-import '../database/tables.dart';
 import '../services/file_service.dart';
 
 /// 消费记录详情页 — 三证文件管理
@@ -32,17 +32,24 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
 
   /// 上传/替换结账单
   Future<void> _uploadReceipt() async {
-    final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2048,
+    );
     if (file == null) return;
+    if (!mounted) return;
 
     final db = context.read<AppDatabase>();
     final fileService = FileService();
+    final oldPath = _record.receiptImg;
     try {
       final savedPath = await fileService.saveReceiptImage(
-        File(file.path), _record.date, _record.merchant,
+        File(file.path),
+        _record.date,
+        _record.merchant,
       );
       await db.updateReceiptImage(_record.id, savedPath);
-      await _refreshRecord();
+      await _refreshRecord(evictPaths: [oldPath, savedPath]);
     } catch (e) {
       _showError('上传失败: $e');
     }
@@ -50,17 +57,24 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
 
   /// 上传/替换支付记录
   Future<void> _uploadPayment() async {
-    final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2048,
+    );
     if (file == null) return;
+    if (!mounted) return;
 
     final db = context.read<AppDatabase>();
     final fileService = FileService();
+    final oldPath = _record.paymentImg;
     try {
       final savedPath = await fileService.savePaymentImage(
-        File(file.path), _record.date, _record.merchant,
+        File(file.path),
+        _record.date,
+        _record.merchant,
       );
       await db.updatePaymentImage(_record.id, savedPath);
-      await _refreshRecord();
+      await _refreshRecord(evictPaths: [oldPath, savedPath]);
     } catch (e) {
       _showError('上传失败: $e');
     }
@@ -68,54 +82,130 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
 
   /// 上传/替换发票
   Future<void> _uploadInvoice() async {
-    final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2048);
-    if (file == null) return;
+    final picked = await _pickInvoiceFile();
+    if (picked == null) return;
+    if (!mounted) return;
 
     final db = context.read<AppDatabase>();
     final fileService = FileService();
+    final oldPath = _record.invoicePdf;
     try {
-      // 用图片方式保存发票（也可用 PDF，但用户拍照最方便）
-      final savedPath = await fileService.saveInvoicePdf(
-        File(file.path), _record.date, _record.merchant,
+      final savedPath = await fileService.saveInvoiceFile(
+        File(picked.path),
+        _record.date,
+        _record.merchant,
+        extension: picked.extension,
       );
       await db.updateInvoicePdf(_record.id, savedPath);
-      await _refreshRecord();
+      await _refreshRecord(evictPaths: [oldPath, savedPath]);
     } catch (e) {
       _showError('上传失败: $e');
     }
   }
 
-  Future<void> _refreshRecord() async {
+  Future<({String path, String extension})?> _pickInvoiceFile() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (ctx) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.picture_as_pdf),
+                  title: const Text('选择 PDF 文件'),
+                  onTap: () => Navigator.pop(ctx, 'pdf'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('从相册选择图片'),
+                  onTap: () => Navigator.pop(ctx, 'image'),
+                ),
+              ],
+            ),
+          ),
+    );
+    if (!mounted) return null;
+
+    if (source == 'pdf') {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: false,
+      );
+      final path = result?.files.single.path;
+      if (path == null) return null;
+      return (path: path, extension: '.pdf');
+    }
+
+    if (source == 'image') {
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+      );
+      if (file == null) return null;
+      return (
+        path: file.path,
+        extension: _extensionOf(file.path, fallback: '.jpg'),
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> _refreshRecord({List<String?> evictPaths = const []}) async {
+    for (final path in evictPaths) {
+      await _evictFileImage(path);
+    }
+    if (!mounted) return;
+
     final db = context.read<AppDatabase>();
-    final records = await db.getRecordsByMonth(_record.date.year, _record.date.month);
+    final records = await db.getRecordsByMonth(
+      _record.date.year,
+      _record.date.month,
+    );
+    if (!mounted) return;
     final updated = records.where((r) => r.id == _record.id).firstOrNull;
     if (updated != null) {
       setState(() => _record = updated);
     }
   }
 
+  Future<void> _evictFileImage(String? path) async {
+    if (path == null || !_isImageFile(path)) return;
+    await FileImage(File(path)).evict();
+  }
+
   void _showError(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     }
   }
 
   Future<void> _deleteRecord() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('删除记录'),
-        content: const Text('确定要删除这条消费记录吗？关联的文件也会被删除。'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('删除记录'),
+            content: const Text('确定要删除这条消费记录吗？关联的文件也会被删除。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('删除'),
+              ),
+            ],
+          ),
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       final db = context.read<AppDatabase>();
       final fileService = FileService();
       await fileService.deleteRecordFiles(_record.date, _record.merchant);
@@ -160,7 +250,10 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
                           const SizedBox(height: 4),
                           Text(
                             DateFormat('yyyy-MM-dd').format(_record.date),
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
@@ -179,7 +272,12 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
             const SizedBox(height: 24),
 
             // 三证区域
-            Text('文件管理', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              '文件管理',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
 
             // 1. 结账单
@@ -244,7 +342,10 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const Spacer(),
                 if (exists)
@@ -328,7 +429,11 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.picture_as_pdf, size: 32, color: Colors.grey.shade700),
+                  Icon(
+                    Icons.picture_as_pdf,
+                    size: 32,
+                    color: Colors.grey.shade700,
+                  ),
                   const SizedBox(width: 8),
                   const Text('点击查看文件'),
                 ],
