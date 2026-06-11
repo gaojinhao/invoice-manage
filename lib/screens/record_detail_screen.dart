@@ -372,12 +372,13 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
                   ),
                   child: Image.file(
                     file!,
+                    key: ValueKey(_fileCacheKey(filePath)),
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildAddButton(
-                      '图片加载失败，点击重新上传', onUpload,
-                    ),
+                    errorBuilder:
+                        (_, __, ___) =>
+                            _buildAddButton('图片加载失败，点击重新上传', onUpload),
                   ),
                 ),
                 // 替换按钮（覆盖在右上角）
@@ -465,26 +466,36 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
   Widget _buildAddButton(String hint, VoidCallback onUpload) {
     return InkWell(
       onTap: onUpload,
-      child: Container(
-        height: 100,
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(12),
-            bottomRight: Radius.circular(12),
-          ),
-          color: Colors.grey,
+      child: CustomPaint(
+        foregroundPainter: _DashedBorderPainter(
+          color: Colors.grey.shade400,
+          radius: const Radius.circular(8),
         ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add_circle_outline, size: 36, color: Colors.grey.shade500),
-              const SizedBox(height: 4),
-              Text(
-                hint,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-            ],
+        child: Container(
+          height: 100,
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(8),
+              bottomRight: Radius.circular(8),
+            ),
+            color: Colors.grey.shade100,
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.add_circle_outline,
+                  size: 36,
+                  color: Colors.grey.shade500,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hint,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -496,14 +507,67 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
   }
 
+  String _fileCacheKey(String path) {
+    final file = File(path);
+    final modified =
+        file.existsSync() ? file.lastModifiedSync().millisecondsSinceEpoch : 0;
+    return '$path-$modified';
+  }
+
+  String _extensionOf(String path, {required String fallback}) {
+    final name = path.split(Platform.pathSeparator).last;
+    final dot = name.lastIndexOf('.');
+    if (dot < 0 || dot == name.length - 1) return fallback;
+    return name.substring(dot).toLowerCase();
+  }
+
   void _viewFile(String path) {
     final file = File(path);
     if (!file.existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('文件不存在')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('文件不存在')));
       return;
     }
     OpenFile.open(path);
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final Radius radius;
+
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2;
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndCorners(
+      rect.deflate(0.6),
+      bottomLeft: radius,
+      bottomRight: radius,
+    );
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      const dash = 6.0;
+      const gap = 4.0;
+      while (distance < metric.length) {
+        final end = (distance + dash).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.radius != radius;
   }
 }
