@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import '../database/app_database.dart';
-import '../database/tables.dart';
 import 'email_service.dart';
 import 'file_service.dart';
 import 'notification_service.dart';
@@ -74,16 +73,18 @@ class InvoiceMatcherService {
       double score = 0;
 
       // 金额匹配（最高权重）
-      if (amountInSubject != null && (record.amount - amountInSubject).abs() < 0.01) {
+      if (amountInSubject != null &&
+          (record.amount - amountInSubject).abs() < 0.01) {
         score += 100;
-      } else if (amountInFileName != null && (record.amount - amountInFileName).abs() < 0.01) {
+      } else if (amountInFileName != null &&
+          (record.amount - amountInFileName).abs() < 0.01) {
         score += 80;
       }
 
       // 商户名匹配
       if (merchantInFileName != null &&
           (record.merchant.contains(merchantInFileName) ||
-           merchantInFileName.contains(record.merchant))) {
+              merchantInFileName.contains(record.merchant))) {
         score += 50;
       }
 

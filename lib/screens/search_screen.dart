@@ -15,10 +15,7 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
   List<Widget>? buildActions(BuildContext context) {
     return [
       if (query.isNotEmpty)
-        IconButton(
-          icon: const Icon(Icons.clear),
-          onPressed: () => query = '',
-        ),
+        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
     ];
   }
 
@@ -30,7 +27,10 @@ class RecordSearchDelegate extends SearchDelegate<ConsumptionRecord?> {
     );
   }
 
-  Future<List<ConsumptionRecord>> _search(BuildContext context, String q) async {
+  Future<List<ConsumptionRecord>> _search(
+    BuildContext context,
+    String q,
+  ) async {
     if (q.trim().isEmpty) return [];
     final db = context.read<AppDatabase>();
     return db.searchRecords(q.trim());

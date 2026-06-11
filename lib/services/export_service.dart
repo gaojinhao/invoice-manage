@@ -18,7 +18,8 @@ class ExportService {
     final allRecords = await db.getAllRecords();
     final dir = await getApplicationDocumentsDirectory();
     final now = DateTime.now();
-    final path = '${dir.path}/exports/报销记录_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.csv';
+    final path =
+        '${dir.path}/exports/报销记录_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.csv';
 
     await Directory('${dir.path}/exports').create(recursive: true);
 
@@ -34,7 +35,8 @@ class ExportService {
         RecordStatus.complete => '三证齐全',
         RecordStatus.archived => '已归档',
       };
-      final date = '${r.date.year}-${r.date.month.toString().padLeft(2, '0')}-${r.date.day.toString().padLeft(2, '0')}';
+      final date =
+          '${r.date.year}-${r.date.month.toString().padLeft(2, '0')}-${r.date.day.toString().padLeft(2, '0')}';
       buffer.writeln(
         '"$date","${r.merchant}","${r.amount}","$status","${r.receiptImg ?? ''}","${r.paymentImg ?? ''}","${r.invoicePdf ?? ''}","${r.notes ?? ''}","${r.createdAt}"',
       );
@@ -53,7 +55,8 @@ class ExportService {
     await Directory(backupDir).create(recursive: true);
 
     final src = File('${dir.path}/invoice_app.db');
-    final dst = '${backupDir}/invoice_app_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.db';
+    final dst =
+        '$backupDir/invoice_app_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.db';
 
     if (await src.exists()) {
       await src.copy(dst);

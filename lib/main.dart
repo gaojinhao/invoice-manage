@@ -5,9 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'database/app_database.dart';
-import 'database/tables.dart';
 import 'screens/home_screen.dart';
-import 'screens/email_config_screen.dart';
 import 'services/notification_service.dart';
 import 'services/scheduler_service.dart';
 import 'services/theme_provider.dart';
@@ -81,9 +79,16 @@ class _ErrorHandlerState extends State<_ErrorHandler> {
                 children: [
                   const Icon(Icons.error_outline, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  const Text('App 启动出错', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'App 启动出错',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  Text(_error!, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
@@ -111,10 +116,7 @@ class InvoiceApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: [
-          const Locale('zh', 'CN'),
-          const Locale('en', 'US'),
-        ],
+        supportedLocales: [const Locale('zh', 'CN'), const Locale('en', 'US')],
         locale: const Locale('zh', 'CN'),
         theme: ThemeData(
           colorSchemeSeed: Colors.indigo,

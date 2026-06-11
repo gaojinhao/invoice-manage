@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
@@ -43,37 +42,32 @@ class _ChartsScreenState extends State<ChartsScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('消费统计')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadData,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildSectionTitle(theme, '月度趋势（近 6 个月）'),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 240,
-                    child: _buildBarChart(theme),
-                  ),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle(theme, '当前状态分布'),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 200,
-                    child: _buildPieChart(theme),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStatusLegend(theme),
-                  if (_trend.isNotEmpty) ...[
-                    const SizedBox(height: 32),
-                    _buildSectionTitle(theme, '本月明细'),
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                onRefresh: _loadData,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildSectionTitle(theme, '月度趋势（近 6 个月）'),
                     const SizedBox(height: 8),
-                    _buildCurrentMonthSummary(theme),
+                    SizedBox(height: 240, child: _buildBarChart(theme)),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle(theme, '当前状态分布'),
+                    const SizedBox(height: 8),
+                    SizedBox(height: 200, child: _buildPieChart(theme)),
+                    const SizedBox(height: 16),
+                    _buildStatusLegend(theme),
+                    if (_trend.isNotEmpty) ...[
+                      const SizedBox(height: 32),
+                      _buildSectionTitle(theme, '本月明细'),
+                      const SizedBox(height: 8),
+                      _buildCurrentMonthSummary(theme),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
     );
   }
 
@@ -164,9 +158,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 barRods: [
                   BarChartRodData(
                     toY: _trend[i].total,
-                    color: isCurrent
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.primary.withAlpha(120),
+                    color:
+                        isCurrent
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.primary.withAlpha(120),
                     width: 24,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(4),
@@ -200,9 +195,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
   };
 
   Widget _buildPieChart(ThemeData theme) {
-    final nonZero = _statusCounts.entries
-        .where((e) => e.value > 0)
-        .toList();
+    final nonZero = _statusCounts.entries.where((e) => e.value > 0).toList();
 
     if (nonZero.isEmpty) {
       return const Center(child: Text('暂无数据'));
@@ -234,27 +227,28 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return Wrap(
       spacing: 16,
       runSpacing: 8,
-      children: RecordStatus.values.map((status) {
-        final count = _statusCounts[status] ?? 0;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: _statusColors[status],
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '${_statusLabels[status]} ($count)',
-              style: const TextStyle(fontSize: 13),
-            ),
-          ],
-        );
-      }).toList(),
+      children:
+          RecordStatus.values.map((status) {
+            final count = _statusCounts[status] ?? 0;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _statusColors[status],
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${_statusLabels[status]} ($count)',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            );
+          }).toList(),
     );
   }
 

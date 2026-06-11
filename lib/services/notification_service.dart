@@ -10,7 +10,9 @@ class NotificationService {
 
   /// 初始化通知通道
   Future<void> initialize() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -18,10 +20,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      const InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      ),
+      const InitializationSettings(android: androidSettings, iOS: iosSettings),
     );
   }
 
@@ -60,12 +59,7 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
 
-    await _plugin.show(
-      1002,
-      '发票已下载',
-      '$merchant ($amount元) 的发票已自动下载',
-      details,
-    );
+    await _plugin.show(1002, '发票已下载', '$merchant ($amount元) 的发票已自动下载', details);
   }
 
   /// 发送通知（月度报告已发送）
@@ -80,11 +74,6 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
 
-    await _plugin.show(
-      1003,
-      '月度报销文件已发送',
-      '$month 的报销文件已打包发送到您的邮箱',
-      details,
-    );
+    await _plugin.show(1003, '月度报销文件已发送', '$month 的报销文件已打包发送到您的邮箱', details);
   }
 }
