@@ -94,7 +94,7 @@ class _ImapClient {
   /// 搜索指定日期后的邮件
   Future<List<String>> searchSince(DateTime since) async {
     final dateStr =
-        '${since.day.toString().padLeft(2, '0')}-${_monthAbbr(since.month)}-${since.year}';
+        '${since.day.toString().padLeft(2, '0')}-${EmailService.monthAbbr(since.month)}-${since.year}';
     _tag = _nextTag();
     await _sendCommand('$tag SEARCH SINCE "$dateStr"');
     final resp = await _readResponse();
@@ -128,12 +128,12 @@ class _ImapClient {
         // Subject is the 2nd field in ENVELOPE
         final m = RegExp(r'ENVELOPE\s*\([^)]*"([^"]*)"\s*\(').firstMatch(line);
         if (m != null) {
-          result['subject'] = _decodeMimeHeader(m.group(1)!);
+          result['subject'] = EmailService.decodeMimeHeader(m.group(1)!);
         } else {
           // Try to extract subject from raw ENVELOPE
           final m2 = RegExp(r'\?\s*"([^"]*)"\s*\(').firstMatch(line);
           if (m2 != null) {
-            result['subject'] = _decodeMimeHeader(m2.group(1)!);
+            result['subject'] = EmailService.decodeMimeHeader(m2.group(1)!);
           }
         }
       }
@@ -304,40 +304,7 @@ class _ImapClient {
     }
   }
 
-  String _decodeMimeHeader(String raw) {
-    // 解码 =?UTF-8?B?...?= 格式
-    final m = RegExp(r'=\?([^?]+)\?([^?])\?([^?]*)\?=').firstMatch(raw);
-    if (m != null) {
-      final encoding = m.group(2)!;
-      final data = m.group(3)!;
-      if (encoding == 'B' || encoding == 'b') {
-        try {
-          return utf8.decode(base64.decode(data));
-        } catch (_) {
-          return raw;
-        }
-      }
-    }
-    return raw;
-  }
-
-  String _monthAbbr(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return months[month - 1];
-  }
+  // decodeMimeHeader / monthAbbr moved to EmailService as static utilities
 }
 
 /// 邮箱连接验证结果
@@ -362,6 +329,32 @@ class EmailService {
   EmailConfig? _config;
 
   bool get isConfigured => _config != null;
+
+  /// Visible for testing — 解码 =?UTF-8?B?...?= 格式的 MIME 头
+  static String decodeMimeHeader(String raw) {
+    final m = RegExp(r'=\?([^?]+)\?([^?])\?([^?]*)\?=').firstMatch(raw);
+    if (m != null) {
+      final encoding = m.group(2)!;
+      final data = m.group(3)!;
+      if (encoding == 'B' || encoding == 'b') {
+        try {
+          return utf8.decode(base64.decode(data));
+        } catch (_) {
+          return raw;
+        }
+      }
+    }
+    return raw;
+  }
+
+  /// Visible for testing — 返回月份英文缩写
+  static String monthAbbr(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[month - 1];
+  }
 
   void configure(EmailConfig config) {
     _config = config;

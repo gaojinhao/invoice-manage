@@ -444,4 +444,61 @@ void main() {
       expect(cur.status, RecordStatus.archived);
     });
   });
+
+  // T20: 边界值 + 组合查询
+  group('AppDatabase — in-memory (T20 边界值/组合)', () {
+    late AppDatabase db;
+
+    setUp(() async {
+      db = AppDatabase.test();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('searchRecords — 金额字符串匹配时同时搜索商户名（OR逻辑）', () async {
+      await _create(db, merchant: '华联超市', amount: 128.0);
+      await _create(db, merchant: '永辉超市', amount: 256.0);
+
+      // "128" 作为数字匹配 amount=128，也作为字符串匹配 merchant 包含"128"的
+      final results = await db.searchRecords('128');
+      expect(results.length, 1);
+      expect(results.first.amount, 128.0);
+    });
+
+    test('searchRecords — 关键词同时匹配商户名和备注', () async {
+      await _create(db, merchant: '华联超市', notes: '华联购物');
+      await _create(db, merchant: '永辉超市', notes: '日用品');
+
+      final results = await db.searchRecords('华联');
+      expect(results.length, 1);
+      expect(results.first.merchant, '华联超市');
+    });
+
+    test('getRecordsByMonth — 验证按日期倒序排列', () async {
+      await _create(db, date: DateTime(2026, 6, 1), merchant: '最早');
+      await _create(db, date: DateTime(2026, 6, 30), merchant: '最晚');
+      await _create(db, date: DateTime(2026, 6, 15), merchant: '中间');
+
+      final results = await db.getRecordsByMonth(2026, 6);
+      expect(results.length, 3);
+      expect(results[0].merchant, '最晚');
+      expect(results[1].merchant, '中间');
+      expect(results[2].merchant, '最早');
+    });
+
+    test('getMonthlyTotal — 单条记录即为自身金额', () async {
+      await _create(db, amount: 42.5);
+      final total = await db.getMonthlyTotal(2026, 6);
+      expect(total, 42.5);
+    });
+
+    test('getMonthlyTrend — monthsBack=1 仅返回当前月', () async {
+      await _create(db, amount: 100);
+      final trend = await db.getMonthlyTrend(1);
+      expect(trend.length, 1);
+      expect(trend.first.total, 100);
+    });
+  });
 }

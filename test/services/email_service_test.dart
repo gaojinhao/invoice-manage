@@ -337,6 +337,46 @@ void main() {
     });
   });
 
+  // T21: decodeMimeHeader / monthAbbr
+  group('EmailService.decodeMimeHeader (T21)', () {
+    test('解码 Base64 编码的 UTF-8 MIME 头', () {
+      // "测试" → base64 → "5rWL6K+V"
+      final decoded = EmailService.decodeMimeHeader(
+        '=?UTF-8?B?5rWL6K+V?=',
+      );
+      expect(decoded, '测试');
+    });
+
+    test('非 MIME 格式文本原样返回', () {
+      expect(EmailService.decodeMimeHeader('普通文本'), '普通文本');
+    });
+
+    test('空字符串原样返回', () {
+      expect(EmailService.decodeMimeHeader(''), '');
+    });
+
+    test('无效 Base64 时返回原文', () {
+      final decoded = EmailService.decodeMimeHeader(
+        '=?UTF-8?B?!!!invalid_base64!!!?=',
+      );
+      expect(decoded, contains('=?UTF-8?B?'));
+    });
+  });
+
+  group('EmailService.monthAbbr (T21)', () {
+    test('1月返回 Jan', () {
+      expect(EmailService.monthAbbr(1), 'Jan');
+    });
+
+    test('6月返回 Jun', () {
+      expect(EmailService.monthAbbr(6), 'Jun');
+    });
+
+    test('12月返回 Dec', () {
+      expect(EmailService.monthAbbr(12), 'Dec');
+    });
+  });
+
   // T10: sendEmail 未配置时返回 false
   group('EmailService — sendEmail 边界 (T10)', () {
     late EmailService emailService;
