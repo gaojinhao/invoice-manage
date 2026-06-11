@@ -193,9 +193,20 @@ class AppDatabase extends _$AppDatabase {
   /// 更新结账单照片
   Future<void> updateReceiptImage(String id, String imagePath) async {
     final now = DateTime.now();
+    final current =
+        await (select(consumptionRecords)
+          ..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (current == null) return;
+    final status = statusForFiles(
+      receiptImg: imagePath,
+      paymentImg: current.paymentImg,
+      invoicePdf: current.invoicePdf,
+      currentStatus: current.status,
+    );
     await (update(consumptionRecords)..where((t) => t.id.equals(id))).write(
       ConsumptionRecordsCompanion(
         receiptImg: Value(imagePath),
+        status: Value(status),
         updatedAt: Value(now),
       ),
     );
@@ -204,10 +215,20 @@ class AppDatabase extends _$AppDatabase {
   /// 更新发票文件
   Future<void> updateInvoicePdf(String id, String pdfPath) async {
     final now = DateTime.now();
+    final current =
+        await (select(consumptionRecords)
+          ..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (current == null) return;
+    final status = statusForFiles(
+      receiptImg: current.receiptImg,
+      paymentImg: current.paymentImg,
+      invoicePdf: pdfPath,
+      currentStatus: current.status,
+    );
     await (update(consumptionRecords)..where((t) => t.id.equals(id))).write(
       ConsumptionRecordsCompanion(
         invoicePdf: Value(pdfPath),
-        status: Value(RecordStatus.complete),
+        status: Value(status),
         updatedAt: Value(now),
       ),
     );
@@ -218,7 +239,7 @@ class AppDatabase extends _$AppDatabase {
     final now = DateTime.now();
     await (update(consumptionRecords)..where((t) => t.id.equals(id))).write(
       ConsumptionRecordsCompanion(
-        status: Value(RecordStatus.archived),
+        status: const Value(RecordStatus.archived),
         updatedAt: Value(now),
       ),
     );
