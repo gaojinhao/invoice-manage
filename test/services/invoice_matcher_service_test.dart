@@ -181,4 +181,200 @@ void main() {
       verifyNever(() => mockDb.updateInvoicePdf(any(), any()));
     });
   });
+
+  // T12: 独立匹配策略验证
+  group('runMatching — 匹配策略 (T12)', () {
+    setUp(() {
+      when(
+        () => mockFileService.saveInvoicePdf(any(), any(), any()),
+      ).thenAnswer((_) async => '/saved/invoice.pdf');
+      when(
+        () => mockNotifier.showInvoiceDownloaded(any(), any()),
+      ).thenAnswer((_) async => {});
+      when(
+        () => mockDb.updateInvoicePdf(any(), any()),
+      ).thenAnswer((_) async => {});
+    });
+
+    test('金额在文件名中匹配（80分）+ 日期接近度 + 商户名 → 超过阈值', () async {
+      final record = makeRecord(
+        id: 'r1',
+        date: DateTime(2026, 6, 8),
+        merchant: '华联超市',
+        amount: 128.0,
+        status: RecordStatus.pendingInvoice,
+      );
+      when(
+        () => mockDb.getRecordsNeedingInvoice(),
+      ).thenAnswer((_) async => [record]);
+
+      // 主题无金额，但文件名含金额 128.00
+      final invoices = [
+        makeInvoice(
+          subject: '新发票通知',
+          fileName: '电子发票_128.00_华联超市.pdf',
+          date: DateTime(2026, 6, 10), // 2天差 → +30
+        ),
+      ];
+
+      final result = await service.runMatching(invoices);
+      // 金额文件名80 + 商户名50 + 日期30 = 160 > 30 → match
+      expect(result, 1);
+    });
+
+    test('日期邻近3-7天仅获10分', () async {
+      final record = makeRecord(
+        id: 'r1',
+        date: DateTime(2026, 6, 1),
+        merchant: '测试超市',
+        amount: 50.0,
+        status: RecordStatus.pendingInvoice,
+      );
+      when(
+        () => mockDb.getRecordsNeedingInvoice(),
+      ).thenAnswer((_) async => [record]);
+
+      // 主题含金额 50.00 (+100), 日期差5天 (+30+10=40)
+      final invoices = [
+        makeInvoice(
+          subject: '发票_50.00',
+          date: DateTime(2026, 6, 6), // 5天 → ≤3? no, ≤7? yes → +10
+        ),
+      ];
+
+      final result = await service.runMatching(invoices);
+      // 金额100 + 日期10 = 110 > 30 → match
+      expect(result, 1);
+    });
+
+    test('主题含商户关键词获20分', () async {
+      final record = makeRecord(
+        id: 'r1',
+        date: DateTime(2026, 6, 8),
+        merchant: '海底捞',
+        amount: 200.0,
+        status: RecordStatus.pendingInvoice,
+      );
+      when(
+        () => mockDb.getRecordsNeedingInvoice(),
+      ).thenAnswer((_) async => [record]);
+
+      // 无金额匹配，但主题含"海底"（商户名"海底捞"的子串）
+      // 日期同天 +30
+      final invoices = [
+        makeInvoice(
+          subject: '海底捞火锅_消费凭证',
+          date: DateTime(2026, 6, 8),
+        ),
+      ];
+
+      final result = await service.runMatching(invoices);
+      // 关键词20 + 日期30 = 50 > 30 → match
+      expect(result, 1);
+    });
+
+    test('仅商户名在文件名匹配（金额不匹配）时仍需达到30分阈值', () async {
+      final record = makeRecord(
+        id: 'r1',
+        date: DateTime(2026, 6, 8),
+        merchant: '华联超市',
+        amount: 999.0,
+        status: RecordStatus.pendingInvoice,
+      );
+      when(
+        () => mockDb.getRecordsNeedingInvoice(),
+      ).thenAnswer((_) async => [record]);
+
+      // 文件名含商户名但金额不匹配(128 != 999)
+      final invoices = [
+        makeInvoice(
+          subject: '随机主题',
+          fileName: '华联超市_发票.pdf',
+          date: DateTime(2026, 6, 8), // 同天+30
+        ),
+      ];
+
+      final result = await service.runMatching(invoices);
+      // 商户名50 + 日期30 = 80 > 30 → match
+      expect(result, 1);
+    });
+  });
+
+  // T13: extractAmountFromText / extractMerchantFromText 直接测试
+  group('extractAmountFromText (T13)', () {
+    test('提取标准格式金额 \d+\.\d{2}', () {
+      expect(
+        InvoiceMatcherService.extractAmountFromText('发票金额128.50元'),
+        128.50,
+      );
+    });
+
+    test('提取"合计："前缀金额', () {
+      expect(
+        InvoiceMatcherService.extractAmountFromText('合计：256.00'),
+        256.00,
+      );
+    });
+
+    test('提取"金额："前缀金额', () {
+      expect(
+        InvoiceMatcherService.extractAmountFromText('金额: 99.9'),
+        99.9,
+      );
+    });
+
+    test('多行文本提取第一个匹配到的有效金额', () {
+      // 第一个 \d+\.\d{2} 匹配是 "200.00"（在 原价200.00 中）
+      expect(
+        InvoiceMatcherService.extractAmountFromText(
+          '原价200.00\n实付128.50\n找零71.50',
+        ),
+        200.00,
+      );
+    });
+
+    test('无金额返回 null', () {
+      expect(
+        InvoiceMatcherService.extractAmountFromText('无金额文本'),
+        isNull,
+      );
+    });
+
+    test('金额为0时返回 null（过滤）', () {
+      expect(
+        InvoiceMatcherService.extractAmountFromText('0.00'),
+        isNull,
+      );
+    });
+  });
+
+  group('extractMerchantFromText (T13)', () {
+    test('提取文件名前缀商户名', () {
+      expect(
+        InvoiceMatcherService.extractMerchantFromText('华联超市_20260608_发票.pdf'),
+        '华联超市',
+      );
+    });
+
+    test('文件名以数字开头时返回 null（无有效前缀）', () {
+      expect(
+        InvoiceMatcherService.extractMerchantFromText('20260608_华联超市.pdf'),
+        isNull,
+      );
+    });
+
+    test('前缀过短（<2字符）返回 null', () {
+      expect(
+        InvoiceMatcherService.extractMerchantFromText('A_发票.pdf'),
+        isNull,
+      );
+    });
+
+    test('无匹配时返回 null', () {
+      expect(
+        InvoiceMatcherService.extractMerchantFromText(''),
+        isNull,
+      );
+    });
+  });
 }

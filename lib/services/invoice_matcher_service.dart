@@ -60,11 +60,11 @@ class InvoiceMatcherService {
     if (candidates.isEmpty) return null;
 
     // 策略1: 用主题中的金额匹配
-    final amountInSubject = _extractAmountFromText(invoice.subject);
+    final amountInSubject = extractAmountFromText(invoice.subject);
 
     // 策略2: 用文件名匹配
-    final amountInFileName = _extractAmountFromText(invoice.fileName);
-    final merchantInFileName = _extractMerchantFromText(invoice.fileName);
+    final amountInFileName = extractAmountFromText(invoice.fileName);
+    final merchantInFileName = extractMerchantFromText(invoice.fileName);
 
     // 评分候选记录
     final scored = <_MatchScore>[];
@@ -115,8 +115,8 @@ class InvoiceMatcherService {
     return null;
   }
 
-  /// 从文本中提取金额
-  double? _extractAmountFromText(String text) {
+  /// Visible for testing — 从文本中提取金额
+  static double? extractAmountFromText(String text) {
     final patterns = [
       RegExp(r'(\d+\.\d{2})'),
       RegExp(r'合计[：:\s]*(\d+\.?\d*)'),
@@ -133,8 +133,8 @@ class InvoiceMatcherService {
     return null;
   }
 
-  /// 从文本中提取商户名
-  String? _extractMerchantFromText(String text) {
+  /// Visible for testing — 从文本中提取商户名
+  static String? extractMerchantFromText(String text) {
     // 尝试提取文件名中的商户名（常见格式：商户名_日期.pdf）
     final match = RegExp(r'^([^_\d]+)').firstMatch(text);
     if (match != null) {
