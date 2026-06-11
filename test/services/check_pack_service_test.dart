@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invoice_app/database/app_database.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:invoice_app/database/tables.dart';
 import 'package:invoice_app/services/check_pack_service.dart';
@@ -10,6 +11,7 @@ import '../helpers/mocks.dart';
 
 void main() {
   registerFallbackValue(File(''));
+  registerFallbackValue(<ConsumptionRecord>[]);
   group('DailyCheckService', () {
     late MockAppDatabase mockDb;
     late MockEmailService mockEmail;
@@ -31,14 +33,16 @@ void main() {
     });
 
     test('run — 有缺支付记录的发送通知', () async {
-      when(() => mockDb.getRecordsNeedingPayment())
-          .thenAnswer((_) async => [
-            makeRecord(id: 'r1', status: RecordStatus.pendingPayment),
-            makeRecord(id: 'r2', status: RecordStatus.pendingPayment),
-          ]);
+      when(() => mockDb.getRecordsNeedingPayment()).thenAnswer(
+        (_) async => [
+          makeRecord(id: 'r1', status: RecordStatus.pendingPayment),
+          makeRecord(id: 'r2', status: RecordStatus.pendingPayment),
+        ],
+      );
       when(() => mockEmail.isConfigured).thenReturn(false);
-      when(() => mockNotifier.showPaymentReminder(2))
-          .thenAnswer((_) async => {});
+      when(
+        () => mockNotifier.showPaymentReminder(2),
+      ).thenAnswer((_) async => {});
 
       final (missing, invoices) = await service.run();
 
@@ -48,8 +52,7 @@ void main() {
     });
 
     test('run — 无缺支付记录时不发通知', () async {
-      when(() => mockDb.getRecordsNeedingPayment())
-          .thenAnswer((_) async => []);
+      when(() => mockDb.getRecordsNeedingPayment()).thenAnswer((_) async => []);
       when(() => mockEmail.isConfigured).thenReturn(false);
 
       final (missing, invoices) = await service.run();
@@ -60,8 +63,7 @@ void main() {
     });
 
     test('run — 邮箱未配置则跳过发票检查', () async {
-      when(() => mockDb.getRecordsNeedingPayment())
-          .thenAnswer((_) async => []);
+      when(() => mockDb.getRecordsNeedingPayment()).thenAnswer((_) async => []);
       when(() => mockEmail.isConfigured).thenReturn(false);
 
       final (_, invoices) = await service.run();
@@ -71,20 +73,21 @@ void main() {
     });
 
     test('run — 邮箱已配置时执行发票下载', () async {
-      when(() => mockDb.getRecordsNeedingPayment())
-          .thenAnswer((_) async => []);
+      when(() => mockDb.getRecordsNeedingPayment()).thenAnswer((_) async => []);
       when(() => mockEmail.isConfigured).thenReturn(true);
-      when(() => mockEmail.checkAndDownloadInvoices(any()))
-          .thenAnswer((_) async => [makeInvoice()]);
+      when(
+        () => mockEmail.checkAndDownloadInvoices(any()),
+      ).thenAnswer((_) async => [makeInvoice()]);
 
       // InvoiceMatcherService internally uses mockDb/mockFileService/mockNotifier
       // 但这里创建的是独立的 Matcher，需要额外 mock
-      when(() => mockDb.getRecordsNeedingInvoice())
-          .thenAnswer((_) async => []);
-      when(() => mockFileService.saveInvoicePdf(any(), any(), any()))
-          .thenAnswer((_) async => '/saved/invoice.pdf');
-      when(() => mockNotifier.showInvoiceDownloaded(any(), any()))
-          .thenAnswer((_) async => {});
+      when(() => mockDb.getRecordsNeedingInvoice()).thenAnswer((_) async => []);
+      when(
+        () => mockFileService.saveInvoicePdf(any(), any(), any()),
+      ).thenAnswer((_) async => '/saved/invoice.pdf');
+      when(
+        () => mockNotifier.showInvoiceDownloaded(any(), any()),
+      ).thenAnswer((_) async => {});
 
       final (_, invoices) = await service.run();
 
@@ -94,11 +97,11 @@ void main() {
     });
 
     test('run — 邮箱检查异常时优雅降级', () async {
-      when(() => mockDb.getRecordsNeedingPayment())
-          .thenAnswer((_) async => []);
+      when(() => mockDb.getRecordsNeedingPayment()).thenAnswer((_) async => []);
       when(() => mockEmail.isConfigured).thenReturn(true);
-      when(() => mockEmail.checkAndDownloadInvoices(any()))
-          .thenThrow(Exception('IMAP connection failed'));
+      when(
+        () => mockEmail.checkAndDownloadInvoices(any()),
+      ).thenThrow(Exception('IMAP connection failed'));
 
       final (_, invoices) = await service.run();
 
@@ -127,8 +130,7 @@ void main() {
     });
 
     test('run — 无完整记录返回 0', () async {
-      when(() => mockDb.getCompleteRecords())
-          .thenAnswer((_) async => []);
+      when(() => mockDb.getCompleteRecords()).thenAnswer((_) async => []);
 
       final result = await service.run();
       expect(result, 0);
@@ -147,31 +149,47 @@ void main() {
         ),
       ];
 
-      when(() => mockDb.getCompleteRecords())
-          .thenAnswer((_) async => lastMonthRecords);
-      when(() => mockFileService.zipMonthRecords(2026, 5))
-          .thenAnswer((_) async => '/tmp/2026-05_报销文件.zip');
-      when(() => mockEmail.config)
-          .thenReturn(EmailConfig(
-            email: 'me@qq.com',
-            password: 'xxx',
-            imapServer: 'imap.qq.com',
-            sendTo: 'boss@company.com',
-          ));
-      when(() => mockEmail.sendEmail(
-        to: any(named: 'to'),
-        subject: any(named: 'subject'),
-        body: any(named: 'body'),
-        attachmentPaths: any(named: 'attachmentPaths'),
-      )).thenAnswer((_) async => true);
-      when(() => mockDb.markArchived('r1'))
-          .thenAnswer((_) async => {});
-      when(() => mockNotifier.showMonthlyReportSent(any()))
-          .thenAnswer((_) async => {});
+      when(
+        () => mockDb.getCompleteRecords(),
+      ).thenAnswer((_) async => lastMonthRecords);
+      when(
+        () => mockFileService.zipRecords(2026, 5, any()),
+      ).thenAnswer((_) async => '/tmp/2026-05_报销文件.zip');
+      when(() => mockEmail.config).thenReturn(
+        EmailConfig(
+          email: 'me@qq.com',
+          password: 'xxx',
+          imapServer: 'imap.qq.com',
+          sendTo: 'boss@company.com',
+        ),
+      );
+      when(
+        () => mockEmail.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      ).thenAnswer((_) async => true);
+      when(() => mockDb.markArchived('r1')).thenAnswer((_) async => {});
+      when(
+        () => mockNotifier.showMonthlyReportSent(any()),
+      ).thenAnswer((_) async => {});
 
       final result = await service.run();
 
       expect(result, 1);
+      verify(
+        () => mockFileService.zipRecords(
+          2026,
+          5,
+          any(
+            that: isA<List<ConsumptionRecord>>()
+                .having((records) => records.length, 'length', 1)
+                .having((records) => records.first.id, 'first id', 'r1'),
+          ),
+        ),
+      ).called(1);
       verify(() => mockNotifier.showMonthlyReportSent('2026-05')).called(1);
       verify(() => mockDb.markArchived('r1')).called(1);
     });
@@ -186,20 +204,24 @@ void main() {
         ),
       ];
 
-      when(() => mockDb.getCompleteRecords())
-          .thenAnswer((_) async => lastMonthRecords);
-      when(() => mockFileService.zipMonthRecords(2026, 5))
-          .thenAnswer((_) async => null); // ZIP 打包失败
+      when(
+        () => mockDb.getCompleteRecords(),
+      ).thenAnswer((_) async => lastMonthRecords);
+      when(
+        () => mockFileService.zipRecords(2026, 5, any()),
+      ).thenAnswer((_) async => null); // ZIP 打包失败
 
       final result = await service.run();
       expect(result, 0);
       // 不应该尝试发邮件
-      verifyNever(() => mockEmail.sendEmail(
-        to: any(named: 'to'),
-        subject: any(named: 'subject'),
-        body: any(named: 'body'),
-        attachmentPaths: any(named: 'attachmentPaths'),
-      ));
+      verifyNever(
+        () => mockEmail.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      );
     });
   });
 }
