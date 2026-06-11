@@ -48,6 +48,22 @@ void main() {
     });
   });
 
+  group('EmailConnectionResult', () {
+    test('success 返回成功消息', () {
+      const result = EmailConnectionResult.success();
+
+      expect(result.isSuccess, true);
+      expect(result.message, contains('连接成功'));
+    });
+
+    test('failure 返回失败消息', () {
+      const result = EmailConnectionResult.failure('登录失败');
+
+      expect(result.isSuccess, false);
+      expect(result.message, '登录失败');
+    });
+  });
+
   group('EmailService — 配置管理', () {
     late MockEmailService mockService;
 
@@ -90,12 +106,14 @@ void main() {
     });
 
     test('saveConfig 保存邮箱配置', () async {
-      when(() => mockService.saveConfig(
-        email: any(named: 'email'),
-        password: any(named: 'password'),
-        imapServer: any(named: 'imapServer'),
-        sendTo: any(named: 'sendTo'),
-      )).thenAnswer((_) async => {});
+      when(
+        () => mockService.saveConfig(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          imapServer: any(named: 'imapServer'),
+          sendTo: any(named: 'sendTo'),
+        ),
+      ).thenAnswer((_) async => {});
 
       await mockService.saveConfig(
         email: 'me@qq.com',
@@ -104,38 +122,48 @@ void main() {
         sendTo: 'boss@company.com',
       );
 
-      verify(() => mockService.saveConfig(
-        email: 'me@qq.com',
-        password: 'authcode',
-        imapServer: 'imap.qq.com',
-        sendTo: 'boss@company.com',
-      )).called(1);
+      verify(
+        () => mockService.saveConfig(
+          email: 'me@qq.com',
+          password: 'authcode',
+          imapServer: 'imap.qq.com',
+          sendTo: 'boss@company.com',
+        ),
+      ).called(1);
     });
 
     test('checkAndDownloadInvoices 返回下载的发票列表', () async {
       final invoices = [makeInvoice(), makeInvoice()];
-      when(() => mockService.checkAndDownloadInvoices(any()))
-          .thenAnswer((_) async => invoices);
+      when(
+        () => mockService.checkAndDownloadInvoices(any()),
+      ).thenAnswer((_) async => invoices);
 
-      final result = await mockService.checkAndDownloadInvoices('/tmp/downloads');
+      final result = await mockService.checkAndDownloadInvoices(
+        '/tmp/downloads',
+      );
       expect(result.length, 2);
     });
 
     test('checkAndDownloadInvoices — 无新发票返回空列表', () async {
-      when(() => mockService.checkAndDownloadInvoices(any()))
-          .thenAnswer((_) async => []);
+      when(
+        () => mockService.checkAndDownloadInvoices(any()),
+      ).thenAnswer((_) async => []);
 
-      final result = await mockService.checkAndDownloadInvoices('/tmp/downloads');
+      final result = await mockService.checkAndDownloadInvoices(
+        '/tmp/downloads',
+      );
       expect(result, isEmpty);
     });
 
     test('sendEmail — 发送成功返回 true', () async {
-      when(() => mockService.sendEmail(
-        to: any(named: 'to'),
-        subject: any(named: 'subject'),
-        body: any(named: 'body'),
-        attachmentPaths: any(named: 'attachmentPaths'),
-      )).thenAnswer((_) async => true);
+      when(
+        () => mockService.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      ).thenAnswer((_) async => true);
 
       final sent = await mockService.sendEmail(
         to: 'boss@company.com',
@@ -148,12 +176,14 @@ void main() {
     });
 
     test('sendEmail — 发送失败返回 false', () async {
-      when(() => mockService.sendEmail(
-        to: any(named: 'to'),
-        subject: any(named: 'subject'),
-        body: any(named: 'body'),
-        attachmentPaths: any(named: 'attachmentPaths'),
-      )).thenAnswer((_) async => false);
+      when(
+        () => mockService.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      ).thenAnswer((_) async => false);
 
       final sent = await mockService.sendEmail(
         to: 'boss@company.com',
