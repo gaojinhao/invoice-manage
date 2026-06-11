@@ -194,6 +194,150 @@ void main() {
       verify(() => mockDb.markArchived('r1')).called(1);
     });
 
+    // T16: 邮件发送失败后 ZIP 成功——不应归档（避免数据丢失）
+    test('run — 邮件发送失败后不应归档记录', () async {
+      final lastMonthRecords = [
+        makeRecord(
+          id: 'r1',
+          date: DateTime(2026, 5, 15),
+          status: RecordStatus.complete,
+          month: '2026-05',
+        ),
+      ];
+
+      when(
+        () => mockDb.getCompleteRecords(),
+      ).thenAnswer((_) async => lastMonthRecords);
+      when(
+        () => mockFileService.zipRecords(2026, 5, any()),
+      ).thenAnswer((_) async => '/tmp/2026-05_报销文件.zip');
+      when(() => mockEmail.config).thenReturn(
+        EmailConfig(
+          email: 'me@qq.com',
+          password: 'xxx',
+          imapServer: 'imap.qq.com',
+          sendTo: 'boss@company.com',
+        ),
+      );
+      // 邮件发送失败
+      when(
+        () => mockEmail.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      final result = await service.run();
+
+      // 仍然返回记录数（打包是成功的）
+      expect(result, 1);
+      // 关键：不应归档记录
+      verifyNever(() => mockDb.markArchived(any()));
+      // 不应发送通知
+      verifyNever(() => mockNotifier.showMonthlyReportSent(any()));
+    });
+
+    // T17: target email 为空时提前返回
+    test('run — 无邮箱配置时提前返回 0', () async {
+      final lastMonthRecords = [
+        makeRecord(
+          id: 'r1',
+          date: DateTime(2026, 5, 15),
+          status: RecordStatus.complete,
+          month: '2026-05',
+        ),
+      ];
+
+      when(
+        () => mockDb.getCompleteRecords(),
+      ).thenAnswer((_) async => lastMonthRecords);
+      when(
+        () => mockFileService.zipRecords(2026, 5, any()),
+      ).thenAnswer((_) async => '/tmp/2026-05_报销文件.zip');
+      // config 为 null → targetEmail = '' → early return
+      when(() => mockEmail.config).thenReturn(null);
+
+      final result = await service.run();
+      expect(result, 0);
+      verifyNever(
+        () => mockEmail.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      );
+    });
+
+    // T18: 过滤其他月份的三证齐全记录
+    test('run — 排除非上月的三证齐全记录', () async {
+      // getCompleteRecords 返回 3 条：1 条上月 + 1 条本月 + 1 条更早
+      final allComplete = [
+        makeRecord(
+          id: 'r_good',
+          date: DateTime(2026, 5, 15),
+          status: RecordStatus.complete,
+          month: '2026-05',
+        ),
+        makeRecord(
+          id: 'r_wrong_current',
+          date: DateTime(2026, 6, 1),
+          status: RecordStatus.complete,
+          month: '2026-06',
+        ),
+        makeRecord(
+          id: 'r_wrong_old',
+          date: DateTime(2026, 4, 20),
+          status: RecordStatus.complete,
+          month: '2026-04',
+        ),
+      ];
+
+      when(
+        () => mockDb.getCompleteRecords(),
+      ).thenAnswer((_) async => allComplete);
+      when(
+        () => mockFileService.zipRecords(
+          2026,
+          5,
+          any(
+            that: isA<List<ConsumptionRecord>>()
+                .having((r) => r.length, 'length', 1)
+                .having((r) => r.first.id, 'id', 'r_good'),
+          ),
+        ),
+      ).thenAnswer((_) async => '/tmp/2026-05.zip');
+      when(() => mockEmail.config).thenReturn(
+        EmailConfig(
+          email: 'me@qq.com',
+          password: 'xxx',
+          imapServer: 'imap.qq.com',
+          sendTo: 'boss@company.com',
+        ),
+      );
+      when(
+        () => mockEmail.sendEmail(
+          to: any(named: 'to'),
+          subject: any(named: 'subject'),
+          body: any(named: 'body'),
+          attachmentPaths: any(named: 'attachmentPaths'),
+        ),
+      ).thenAnswer((_) async => true);
+      when(() => mockDb.markArchived(any())).thenAnswer((_) async => {});
+      when(
+        () => mockNotifier.showMonthlyReportSent(any()),
+      ).thenAnswer((_) async => {});
+
+      final result = await service.run();
+      expect(result, 1); // 只打包了 1 条（上月的）
+      // 只归档了 r_good
+      verify(() => mockDb.markArchived('r_good')).called(1);
+      verifyNever(() => mockDb.markArchived('r_wrong_current'));
+      verifyNever(() => mockDb.markArchived('r_wrong_old'));
+    });
+
     test('run — ZIP 打包失败返回 0', () async {
       final lastMonthRecords = [
         makeRecord(

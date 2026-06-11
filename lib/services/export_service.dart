@@ -10,13 +10,16 @@ import '../database/tables.dart';
 class ExportService {
   final AppDatabase db;
 
+  /// 可注入的基础目录（用于测试），默认使用应用文档目录
+  Future<Directory> Function() baseDirectory = getApplicationDocumentsDirectory;
+
   ExportService(this.db);
 
   /// 导出消费记录为 CSV
   /// 返回导出的文件路径
   Future<String> exportCsv() async {
     final allRecords = await db.getAllRecords();
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await baseDirectory();
     final now = DateTime.now();
     final path =
         '${dir.path}/exports/报销记录_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.csv';
@@ -38,7 +41,10 @@ class ExportService {
       final date =
           '${r.date.year}-${r.date.month.toString().padLeft(2, '0')}-${r.date.day.toString().padLeft(2, '0')}';
       buffer.writeln(
-        '"$date","${r.merchant}","${r.amount}","$status","${r.receiptImg ?? ''}","${r.paymentImg ?? ''}","${r.invoicePdf ?? ''}","${r.notes ?? ''}","${r.createdAt}"',
+        '"$date","${_escapeCsv(r.merchant)}","${r.amount}","$status",'
+        '"${_escapeCsv(r.receiptImg ?? '')}","${_escapeCsv(r.paymentImg ?? '')}",'
+        '"${_escapeCsv(r.invoicePdf ?? '')}","${_escapeCsv(r.notes ?? '')}",'
+        '"${r.createdAt}"',
       );
     }
 
@@ -49,7 +55,7 @@ class ExportService {
   /// 备份数据库文件
   /// 返回备份文件路径
   Future<String> backupDatabase() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await baseDirectory();
     final now = DateTime.now();
     final backupDir = '${dir.path}/backups';
     await Directory(backupDir).create(recursive: true);
@@ -62,6 +68,11 @@ class ExportService {
       await src.copy(dst);
     }
     return dst;
+  }
+
+  /// CSV 字段转义：双引号 → 两个双引号
+  String _escapeCsv(String value) {
+    return value.replaceAll('"', '""');
   }
 
   /// 分享文件（通过系统分享菜单）
