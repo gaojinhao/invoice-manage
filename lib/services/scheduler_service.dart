@@ -26,7 +26,7 @@ class SchedulerService {
       SchedulerTasks.dailyCheck,
       SchedulerTasks.dailyCheck,
       frequency: const Duration(hours: 24),
-      initialDelay: _nextRunAt(10, 0),
+      initialDelay: nextRunAt(10, 0),
       constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
@@ -38,26 +38,30 @@ class SchedulerService {
       SchedulerTasks.monthlyPack,
       SchedulerTasks.monthlyPack,
       frequency: const Duration(hours: 24),
-      initialDelay: _nextMonthlyRun(),
+      initialDelay: nextMonthlyRun(),
       constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
-  Duration _nextRunAt(int hour, int minute) {
-    final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, hour, minute);
-    if (next.isBefore(now)) next = next.add(const Duration(days: 1));
-    return next.difference(now);
+  /// Visible for testing — calculates the delay until [hour]:[minute] today
+  /// (or tomorrow if the time has already passed).
+  Duration nextRunAt(int hour, int minute, {DateTime? now}) {
+    final n = now ?? DateTime.now();
+    var next = DateTime(n.year, n.month, n.day, hour, minute);
+    if (next.isBefore(n)) next = next.add(const Duration(days: 1));
+    return next.difference(n);
   }
 
-  Duration _nextMonthlyRun() {
-    final now = DateTime.now();
-    var nextMonth = DateTime(now.year, now.month + 1, 1, 8, 0);
-    if (now.day == 1 && now.hour < 8) {
-      nextMonth = DateTime(now.year, now.month, 1, 8, 0);
+  /// Visible for testing — calculates the delay until the next 1st of month
+  /// at 08:00 (or today at 08:00 if it's already the 1st before 8 AM).
+  Duration nextMonthlyRun({DateTime? now}) {
+    final n = now ?? DateTime.now();
+    var nextMonth = DateTime(n.year, n.month + 1, 1, 8, 0);
+    if (n.day == 1 && n.hour < 8) {
+      nextMonth = DateTime(n.year, n.month, 1, 8, 0);
     }
-    return nextMonth.difference(now);
+    return nextMonth.difference(n);
   }
 }
 
