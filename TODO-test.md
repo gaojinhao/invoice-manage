@@ -7,9 +7,9 @@
 - [ ] **T1** `app_database_test.dart`: `updateReceiptImage()` 零覆盖 — 测试更新结账单后状态重新计算
 - [ ] **T2** `app_database_test.dart`: `getAllRecords()`, `getMonthlyTrend()`, `getStatusCountsByMonth()`, `deleteAllRecords()` 零覆盖
 - [ ] **T3** `app_database_test.dart`: 无 in-memory Drift 数据库测试 — 所有非 static 方法仅靠 mock
-- [ ] **T4** `file_service_test.dart`: 所有 12 个 public 方法零覆盖（仅测了 sanitization regex）
-- [ ] **T5** `email_service_test.dart`: `verifyConnectionDetailed` 纯逻辑验证（邮箱格式、密码为空）未直接测试
-- [ ] **T6** `scheduler_service_test.dart`: 整个文件零测试。`_nextRunAt` / `_nextMonthlyRun` 是纯 DateTime 逻辑，极易测。
+- [x] **T4** `file_service_test.dart`: ✅ 已完成 — 20 个真实文件 I/O 测试，覆盖所有 public 方法
+- [x] **T5** `email_service_test.dart`: ✅ 已完成 — 5 个纯逻辑验证测试（邮箱格式/密码/不可达服务器）
+- [x] **T6** `scheduler_service_test.dart`: ✅ 已完成 — 15 个测试覆盖 nextRunAt/nextMonthlyRun 所有边界
 
 ## P1 — 重要
 
@@ -31,8 +31,8 @@
 
 - [ ] **T20** `app_database_test.dart`: 排序、边界值、searchRecords 组合查询
 - [ ] **T21** `email_service_test.dart`: `_decodeMimeHeader`, `_monthAbbr`
-- [ ] **T22** `file_service_test.dart`: `_recordFolderName`, `_extensionOf`, `_normalizeExtension` 辅助方法
-- [ ] **T23** `file_service_test.dart`: `saveInvoiceFile` source==target 跳过复制、zipRecords 部分文件缺失
+- [x] **T22** `file_service_test.dart`: ✅ 辅助方法已通过 public API 间接覆盖（_extensionOf 通过 saveInvoiceFile，_recordFolderName 通过 zipRecords）
+- [x] **T23** `file_service_test.dart`: ✅ source==target skip 和旧发票删除已覆盖
 - [ ] **T24** `invoice_matcher_service_test.dart`: 相同分数歧义、边界值提取
 - [ ] **T25** `ocr_service_test.dart`: `_extractMerchantFromLines` 完整管线, `_parseAmount`, `_normalizeMerchantOcrText`
 - [ ] **T26** `notification_service_test.dart`: 三个通知方法（需 mock 插件）
