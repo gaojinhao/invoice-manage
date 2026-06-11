@@ -88,27 +88,88 @@ class FileService {
   /// 打包某月的完整记录为 ZIP
   Future<String?> zipMonthRecords(int year, int month) async {
     final base = await getApplicationDocumentsDirectory();
-    final monthStr = '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+    final monthStr =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
     final monthDir = Directory('${base.path}/records/$monthStr');
 
     if (!await monthDir.exists()) return null;
 
     final encoder = ZipEncoder();
     final archive = Archive();
+    var hasFiles = false;
 
     await for (final entity in monthDir.list(recursive: true)) {
       if (entity is File) {
         final relativePath = entity.path.replaceFirst('${monthDir.path}/', '');
         final bytes = await entity.readAsBytes();
         archive.addFile(ArchiveFile(relativePath, bytes.length, bytes));
+        hasFiles = true;
       }
     }
 
+    if (!hasFiles) return null;
+
     final zipBytes = encoder.encode(archive);
-    if (zipBytes == null) return null;
 
     final zipDir = await getApplicationDocumentsDirectory();
     final zipPath = '${zipDir.path}/records/${monthStr}_报销文件.zip';
+    await File(zipPath).writeAsBytes(zipBytes);
+    return zipPath;
+  }
+
+  /// 只打包指定记录中的现有文件。
+  Future<String?> zipRecords(
+    int year,
+    int month,
+    List<ConsumptionRecord> records, {
+    String? outputName,
+  }) async {
+    if (records.isEmpty) return null;
+
+    final encoder = ZipEncoder();
+    final archive = Archive();
+    final folderCounts = <String, int>{};
+    var hasFiles = false;
+
+    for (final record in records) {
+      final baseFolder = _recordFolderName(record);
+      final count = (folderCounts[baseFolder] ?? 0) + 1;
+      folderCounts[baseFolder] = count;
+      final folder = count == 1 ? baseFolder : '${baseFolder}_$count';
+
+      final files = <({String label, String? path})>[
+        (label: '结账单', path: record.receiptImg),
+        (label: '支付记录', path: record.paymentImg),
+        (label: '发票', path: record.invoicePdf),
+      ];
+
+      for (final item in files) {
+        final path = item.path;
+        if (path == null) continue;
+        final file = File(path);
+        if (!await file.exists()) continue;
+
+        final bytes = await file.readAsBytes();
+        final ext = _extensionOf(path, fallback: '');
+        archive.addFile(
+          ArchiveFile('$folder/${item.label}$ext', bytes.length, bytes),
+        );
+        hasFiles = true;
+      }
+    }
+
+    if (!hasFiles) return null;
+
+    final zipBytes = encoder.encode(archive);
+
+    final base = await getApplicationDocumentsDirectory();
+    final monthStr =
+        '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
+    final zipDir = Directory('${base.path}/records');
+    if (!await zipDir.exists()) {
+      await zipDir.create(recursive: true);
+    }
+    final zipPath = '${zipDir.path}/${outputName ?? '${monthStr}_报销文件.zip'}';
     await File(zipPath).writeAsBytes(zipBytes);
     return zipPath;
   }

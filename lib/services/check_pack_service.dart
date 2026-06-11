@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import '../database/app_database.dart';
-import '../database/tables.dart';
 import 'email_service.dart';
 import 'file_service.dart';
 import 'notification_service.dart';
@@ -105,24 +104,25 @@ class MonthlyPackService {
 
     // 获取上个月"三证齐全"的记录
     final completeRecords = await db.getCompleteRecords();
-    final recordsToPack = completeRecords
-        .where((r) => r.month == monthStr)
-        .toList();
+    final recordsToPack =
+        completeRecords.where((r) => r.month == monthStr).toList();
 
     if (recordsToPack.isEmpty) return 0;
 
-    // ZIP 打包
-    final zipPath = await fileService.zipMonthRecords(year, month);
+    // ZIP 打包：只包含筛选出的三证齐全记录
+    final zipPath = await fileService.zipRecords(year, month, recordsToPack);
     if (zipPath == null) return 0;
 
     // 发送邮件
-    final targetEmail = emailService.config?.sendTo ?? emailService.config?.email ?? '';
+    final targetEmail =
+        emailService.config?.sendTo ?? emailService.config?.email ?? '';
     if (targetEmail.isEmpty) return 0;
 
     final sent = await emailService.sendEmail(
       to: targetEmail,
-      subject: '${monthStr} 报销文件',
-      body: '您好，\n\n${year}年${month}月的报销文件已打包，共 ${recordsToPack.length} 条记录，请查收附件。\n\n---\n本邮件由报销文件管理 App 自动发送',
+      subject: '$monthStr 报销文件',
+      body:
+          '您好，\n\n$year年$month月的报销文件已打包，共 ${recordsToPack.length} 条记录，请查收附件。\n\n---\n本邮件由报销文件管理 App 自动发送',
       attachmentPaths: [zipPath],
     );
 
