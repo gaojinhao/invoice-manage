@@ -1,5 +1,4 @@
 import 'package:workmanager/workmanager.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'check_pack_service.dart';
@@ -18,10 +17,7 @@ class SchedulerTasks {
 class SchedulerService {
   /// 注册所有定时任务
   Future<void> initialize() async {
-    await Workmanager().initialize(
-      _callbackDispatcher,
-      isInDebugMode: false,
-    );
+    await Workmanager().initialize(_callbackDispatcher);
   }
 
   /// 注册每日检查任务（每天 10:00）
@@ -31,23 +27,19 @@ class SchedulerService {
       SchedulerTasks.dailyCheck,
       frequency: const Duration(hours: 24),
       initialDelay: _nextRunAt(10, 0),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
 
-  /// 注册月初打包任务（每月 1 日 08:00）
+  /// 注册月初打包任务（每天检查，只有每月 1 日实际执行）
   Future<void> scheduleMonthlyPack() async {
     await Workmanager().registerPeriodicTask(
       SchedulerTasks.monthlyPack,
       SchedulerTasks.monthlyPack,
-      frequency: const Duration(days: 30),
+      frequency: const Duration(hours: 24),
       initialDelay: _nextMonthlyRun(),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     );
   }
@@ -98,15 +90,17 @@ Future<void> _runDailyCheck() async {
 
   // 从安全存储加载邮箱配置
   try {
-    final storage = FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
     final email = await storage.read(key: 'email_addr') ?? '';
     final password = await storage.read(key: 'email_pass') ?? '';
     if (email.isNotEmpty && password.isNotEmpty) {
-      emailService.configure(EmailConfig(
-        email: email,
-        password: password,
-        imapServer: emailService.getImapServer(email),
-      ));
+      emailService.configure(
+        EmailConfig(
+          email: email,
+          password: password,
+          imapServer: emailService.getImapServer(email),
+        ),
+      );
     }
   } catch (_) {
     // 后台 isolate 可能无法访问 secure storage，静默跳过
@@ -127,6 +121,8 @@ Future<void> _runDailyCheck() async {
 
 /// 执行月初打包
 Future<void> _runMonthlyPack() async {
+  if (DateTime.now().day != 1) return;
+
   final db = AppDatabase();
   final notifier = NotificationService();
   final fileService = FileService();
@@ -134,17 +130,19 @@ Future<void> _runMonthlyPack() async {
 
   // 从安全存储加载邮箱配置
   try {
-    final storage = FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
     final email = await storage.read(key: 'email_addr') ?? '';
     final password = await storage.read(key: 'email_pass') ?? '';
     final sendTo = await storage.read(key: 'send_to') ?? email;
     if (email.isNotEmpty && password.isNotEmpty) {
-      emailService.configure(EmailConfig(
-        email: email,
-        password: password,
-        imapServer: emailService.getImapServer(email),
-        sendTo: sendTo,
-      ));
+      emailService.configure(
+        EmailConfig(
+          email: email,
+          password: password,
+          imapServer: emailService.getImapServer(email),
+          sendTo: sendTo,
+        ),
+      );
     }
   } catch (_) {
     // 静默跳过
