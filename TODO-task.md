@@ -42,3 +42,29 @@
 ## ✅ Task 10: 详情页灰色虚线占位 + 图片缓存刷新
 - **Commit**: `f66874e`
 - **修复**: `_DashedBorderPainter` 虚线边框；`_fileCacheKey` 时间戳缓存破坏
+
+---
+
+# TODO — 待实现任务
+
+> 基于 openspec `amount-validation-word-export` change 新增，于 2026-06-12 记录。
+
+## ⏳ Task 11: 上传支付记录时校验金额一致性
+- **Spec**: `openspec/changes/amount-validation-word-export/specs/consumption/spec.md`
+- **需求**: 上传支付记录截图后识别支付金额，与消费记录结账单金额比对
+- **提示**: 金额不一致时显示“支付记录与结账单金额不一致”，但仍保存文件
+- **测试**: 覆盖金额一致、金额不一致、无法识别金额
+
+## ⏳ Task 12: 上传发票时校验金额一致性
+- **Spec**: `openspec/changes/amount-validation-word-export/specs/consumption/spec.md`
+- **需求**: 上传发票 PDF 或发票图片后识别发票金额，与消费记录结账单金额比对
+- **提示**: 金额不一致时显示“发票与结账单金额不一致”，但仍保存文件
+- **测试**: 覆盖 PDF/图片发票、金额一致、金额不一致、无法识别金额
+
+## ⏳ Task 13: 生成月度打印裁剪 Word 文件
+- **Spec**: `openspec/changes/amount-validation-word-export/specs/consumption/spec.md`
+- **需求**: 打包导出当月记录时，额外生成一个 Word 文件用于打印裁剪
+- **发票排版**: 发票截图/渲染图宽度与 A4 纸可打印宽度一致，高度保留完整内容
+- **支付记录排版**: 每张支付记录宽为 A4 纸宽度的 1/4，高为 A4 纸高度的 1/3，一行最多 3 张
+- **导出**: Word 文件放入当月导出的 ZIP
+- **测试**: 覆盖无发票、无支付记录、混合 PDF/图片发票、多支付记录换行/分页
