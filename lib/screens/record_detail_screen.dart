@@ -142,7 +142,7 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     if (!mounted) return null;
 
     if (source == 'pdf') {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
