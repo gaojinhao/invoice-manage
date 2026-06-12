@@ -174,6 +174,8 @@ adb logcat --pid=$(adb shell pidof com.example.invoice_app)
 
 常见类型：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`chore`、`ci`、`build`。
 
+单次提交的 diff 规模必须控制在 200 行以内（插入行 + 删除行）。如果一个需求超过 200 行，按 task、行为或测试/实现边界拆成多个提交；提交前用 `git diff --cached --shortstat` 复核。
+
 示例：
 
 ```text
@@ -190,4 +192,3 @@ dart format <changed dart files>
 dart analyze <changed dart files>
 flutter test <relevant test files>
 ```
-
