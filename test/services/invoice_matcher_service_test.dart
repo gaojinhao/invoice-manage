@@ -262,10 +262,7 @@ void main() {
       // 无金额匹配，但主题含"海底"（商户名"海底捞"的子串）
       // 日期同天 +30
       final invoices = [
-        makeInvoice(
-          subject: '海底捞火锅_消费凭证',
-          date: DateTime(2026, 6, 8),
-        ),
+        makeInvoice(subject: '海底捞火锅_消费凭证', date: DateTime(2026, 6, 8)),
       ];
 
       final result = await service.runMatching(invoices);
@@ -302,7 +299,7 @@ void main() {
 
   // T13: extractAmountFromText / extractMerchantFromText 直接测试
   group('extractAmountFromText (T13)', () {
-    test('提取标准格式金额 \d+\.\d{2}', () {
+    test(r'提取标准格式金额 \d+\.\d{2}', () {
       expect(
         InvoiceMatcherService.extractAmountFromText('发票金额128.50元'),
         128.50,
@@ -310,17 +307,11 @@ void main() {
     });
 
     test('提取"合计："前缀金额', () {
-      expect(
-        InvoiceMatcherService.extractAmountFromText('合计：256.00'),
-        256.00,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('合计：256.00'), 256.00);
     });
 
     test('提取"金额："前缀金额', () {
-      expect(
-        InvoiceMatcherService.extractAmountFromText('金额: 99.9'),
-        99.9,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('金额: 99.9'), 99.9);
     });
 
     test('多行文本提取第一个匹配到的有效金额', () {
@@ -334,17 +325,11 @@ void main() {
     });
 
     test('无金额返回 null', () {
-      expect(
-        InvoiceMatcherService.extractAmountFromText('无金额文本'),
-        isNull,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('无金额文本'), isNull);
     });
 
     test('金额为0时返回 null（过滤）', () {
-      expect(
-        InvoiceMatcherService.extractAmountFromText('0.00'),
-        isNull,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('0.00'), isNull);
     });
   });
 
@@ -364,35 +349,23 @@ void main() {
     });
 
     test('前缀过短（<2字符）返回 null', () {
-      expect(
-        InvoiceMatcherService.extractMerchantFromText('A_发票.pdf'),
-        isNull,
-      );
+      expect(InvoiceMatcherService.extractMerchantFromText('A_发票.pdf'), isNull);
     });
 
     test('无匹配时返回 null', () {
-      expect(
-        InvoiceMatcherService.extractMerchantFromText(''),
-        isNull,
-      );
+      expect(InvoiceMatcherService.extractMerchantFromText(''), isNull);
     });
   });
 
   // T24: 边界值提取 + 相同分数歧义
   group('extractAmountFromText — 边界值 (T24)', () {
     test('金额恰好为 0 返回 null（被过滤）', () {
-      expect(
-        InvoiceMatcherService.extractAmountFromText('合计：0.00'),
-        isNull,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('合计：0.00'), isNull);
     });
 
     test('负数金额符号被忽略只提取数字部分', () {
       // \d+ 不匹配负号，但会匹配 50.00
-      expect(
-        InvoiceMatcherService.extractAmountFromText('金额: -50.00'),
-        50.00,
-      );
+      expect(InvoiceMatcherService.extractAmountFromText('金额: -50.00'), 50.00);
     });
 
     test('含货币符号的金额仍能提取', () {
@@ -451,7 +424,9 @@ void main() {
       ).thenAnswer((_) async => [r1, r2]);
 
       // 同金额+同日期 → 两条分数完全一样
-      final invoices = [makeInvoice(subject: '发票_100.00', date: DateTime(2026, 6, 8))];
+      final invoices = [
+        makeInvoice(subject: '发票_100.00', date: DateTime(2026, 6, 8)),
+      ];
       final result = await service.runMatching(invoices);
 
       // 应匹配到 r1（排序靠前）或 r2（都可以，但不能 crash）

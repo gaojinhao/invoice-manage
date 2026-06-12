@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:invoice_app/database/app_database.dart';
 import 'package:invoice_app/database/tables.dart';
 import 'package:invoice_app/services/export_service.dart';
 
@@ -82,11 +81,9 @@ void main() {
     });
 
     test('商户名含双引号时正确转义', () async {
-      when(() => mockDb.getAllRecords()).thenAnswer(
-        (_) async => [
-          makeRecord(merchant: '华联"旗舰"超市'),
-        ],
-      );
+      when(
+        () => mockDb.getAllRecords(),
+      ).thenAnswer((_) async => [makeRecord(merchant: '华联"旗舰"超市')]);
 
       final path = await svc.exportCsv();
       final content = await File(path).readAsString();
@@ -97,9 +94,7 @@ void main() {
 
     test('备注含双引号和逗号时正确转义', () async {
       when(() => mockDb.getAllRecords()).thenAnswer(
-        (_) async => [
-          makeRecord(merchant: '店A', notes: '备注含"引号",和逗号'),
-        ],
+        (_) async => [makeRecord(merchant: '店A', notes: '备注含"引号",和逗号')],
       );
 
       final path = await svc.exportCsv();

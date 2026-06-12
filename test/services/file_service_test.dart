@@ -6,7 +6,11 @@ import 'package:invoice_app/services/file_service.dart';
 import '../helpers/mocks.dart';
 
 /// Creates a temp file with given content for test purposes.
-Future<File> _tempFile(Directory dir, String name, {String content = 'test'}) async {
+Future<File> _tempFile(
+  Directory dir,
+  String name, {
+  String content = 'test',
+}) async {
   final f = File('${dir.path}/$name');
   await f.writeAsString(content);
   return f;
@@ -33,7 +37,10 @@ void main() {
       final base = await _tempBase();
       final svc = FileService()..baseDirectory = () async => base;
 
-      final dir = await svc.getRecordDir(DateTime(2026, 6, 15), 'file:test?name');
+      final dir = await svc.getRecordDir(
+        DateTime(2026, 6, 15),
+        'file:test?name',
+      );
       final seg = dir.path.split(Platform.pathSeparator).last;
       expect(seg, '2026-06-15_file_test_name');
     });
@@ -53,7 +60,11 @@ void main() {
       final svc = FileService()..baseDirectory = () async => base;
       final src = await _tempFile(base, 'photo.jpg', content: 'receipt-data');
 
-      final saved = await svc.saveReceiptImage(src, DateTime(2026, 6, 10), '测试店');
+      final saved = await svc.saveReceiptImage(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+      );
       expect(saved, contains('2026-06-10_测试店/结账单.jpg'));
       expect(await File(saved).exists(), true);
       expect(await File(saved).readAsString(), 'receipt-data');
@@ -64,7 +75,11 @@ void main() {
       final svc = FileService()..baseDirectory = () async => base;
       final src = await _tempFile(base, 'pay.png', content: 'payment-data');
 
-      final saved = await svc.savePaymentImage(src, DateTime(2026, 6, 10), '测试店');
+      final saved = await svc.savePaymentImage(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+      );
       expect(saved, contains('2026-06-10_测试店/支付记录.jpg'));
       expect(await File(saved).exists(), true);
     });
@@ -77,7 +92,11 @@ void main() {
       final src = await _tempFile(base, 'inv.pdf', content: 'invoice-pdf');
 
       // 文件本身扩展名是 .pdf，saveInvoiceFile 应该使用它
-      final saved = await svc.saveInvoiceFile(src, DateTime(2026, 6, 10), '测试店');
+      final saved = await svc.saveInvoiceFile(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+      );
       expect(saved, contains('发票.pdf'));
     });
 
@@ -87,8 +106,12 @@ void main() {
       final src = await _tempFile(base, 'inv', content: 'invoice-data');
 
       // 文件无扩展名，显式指定 .pdf
-      final saved = await svc.saveInvoiceFile(src, DateTime(2026, 6, 10), '测试店',
-          extension: '.pdf');
+      final saved = await svc.saveInvoiceFile(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+        extension: '.pdf',
+      );
       expect(saved, contains('发票.pdf'));
     });
 
@@ -97,7 +120,11 @@ void main() {
       final svc = FileService()..baseDirectory = () async => base;
       final src = await _tempFile(base, 'photo.jpg', content: 'jpeg-data');
 
-      final saved = await svc.saveInvoiceFile(src, DateTime(2026, 6, 10), '测试店');
+      final saved = await svc.saveInvoiceFile(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+      );
       expect(saved, contains('发票.jpg'));
     });
 
@@ -122,8 +149,12 @@ void main() {
 
       // 保存新发票
       final src = await _tempFile(base, 'new.pdf', content: 'new');
-      await svc.saveInvoiceFile(src, DateTime(2026, 6, 10), '测试店',
-          extension: '.pdf');
+      await svc.saveInvoiceFile(
+        src,
+        DateTime(2026, 6, 10),
+        '测试店',
+        extension: '.pdf',
+      );
 
       // 旧发票被删除
       expect(await File('${dir.path}/发票.jpg').exists(), false);
@@ -141,8 +172,8 @@ void main() {
       final svc = FileService()..baseDirectory = () async => base;
 
       // 创建几个测试目录
-      final d1 = await svc.getRecordDir(DateTime(2026, 6, 10), '店A');
-      final d2 = await svc.getRecordDir(DateTime(2026, 6, 15), '店B');
+      await svc.getRecordDir(DateTime(2026, 6, 10), '店A');
+      await svc.getRecordDir(DateTime(2026, 6, 15), '店B');
       // 不同月份的目录（不应被返回）
       await svc.getRecordDir(DateTime(2026, 5, 20), '店C');
 
@@ -264,8 +295,9 @@ void main() {
         receiptImg: '${dir.path}/结账单.jpg',
       );
 
-      final zipPath = await svc.zipRecords(2026, 6, [record],
-          outputName: 'my_custom.zip');
+      final zipPath = await svc.zipRecords(2026, 6, [
+        record,
+      ], outputName: 'my_custom.zip');
       expect(zipPath, isNotNull);
       expect(zipPath!, contains('my_custom.zip'));
     });
