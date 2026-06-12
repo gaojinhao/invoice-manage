@@ -5,9 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../database/app_database.dart';
 import '../database/tables.dart';
-import '../services/file_service.dart';
-import '../services/export_service.dart';
 import '../services/email_service.dart';
+import '../services/export_service.dart';
+import '../services/file_service.dart';
+import '../services/print_word_service.dart';
 import 'camera_screen.dart';
 import 'record_detail_screen.dart';
 import 'email_config_screen.dart';
@@ -308,6 +309,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     try {
+      await PrintWordService().createMonthPrintDoc(
+        year: _currentMonth.year,
+        month: _currentMonth.month,
+        records: _records,
+      );
+
       final zipPath = await fileService.zipMonthRecords(
         _currentMonth.year,
         _currentMonth.month,

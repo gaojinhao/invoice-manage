@@ -66,10 +66,14 @@ class PrintWordService {
     final file = File(path);
     if (!await file.exists()) return [];
     if (_isPdf(path)) {
-      return pdfRenderService.renderPdfToImages(
-        pdfPath: path,
-        outputDir: tempDir.path,
-      );
+      try {
+        return pdfRenderService.renderPdfToImages(
+          pdfPath: path,
+          outputDir: tempDir.path,
+        );
+      } catch (_) {
+        return [];
+      }
     }
     return _isImage(path) ? [path] : [];
   }
