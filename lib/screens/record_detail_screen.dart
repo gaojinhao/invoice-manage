@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
 
 import '../database/app_database.dart';
+import '../services/amount_validation_service.dart';
 import '../services/file_service.dart';
 
 /// 消费记录详情页 — 三证文件管理
@@ -75,6 +76,7 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
       );
       await db.updatePaymentImage(_record.id, savedPath);
       await _refreshRecord(evictPaths: [oldPath, savedPath]);
+      await _warnIfAmountMismatch(File(savedPath), '支付记录与结账单金额不一致');
     } catch (e) {
       _showError('上传失败: $e');
     }
@@ -98,9 +100,21 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
       );
       await db.updateInvoicePdf(_record.id, savedPath);
       await _refreshRecord(evictPaths: [oldPath, savedPath]);
+      await _warnIfAmountMismatch(File(savedPath), '发票与结账单金额不一致');
     } catch (e) {
       _showError('上传失败: $e');
     }
+  }
+
+  Future<void> _warnIfAmountMismatch(File file, String message) async {
+    final result = await const AmountValidationService().validateFileAmount(
+      file: file,
+      expectedAmount: _record.amount,
+    );
+    if (!mounted || !result.isMismatch) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.orange),
+    );
   }
 
   Future<({String path, String extension})?> _pickInvoiceFile() async {
@@ -128,7 +142,7 @@ class _RecordDetailScreenState extends State<RecordDetailScreen> {
     if (!mounted) return null;
 
     if (source == 'pdf') {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
