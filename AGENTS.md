@@ -166,6 +166,88 @@ adb logcat --pid=$(adb shell pidof com.example.invoice_app)
 - 涉及邮箱授权码、密码、IMAP/SMTP 配置时，继续使用 `flutter_secure_storage`，不要硬编码敏感信息。
 - 涉及文件路径时，注意当前代码保存的是绝对路径；`CODE_REVIEW.md` 中“存相对路径”是目标规范，不是当前实现事实。迁移前需要设计兼容方案。
 
+## 分支管理
+
+本项目采用类 GitFlow 分支模型。AI 助手开始改动前必须先确认当前分支和工作区状态：
+
+```bash
+git status --short --branch
+git branch --show-current
+git remote -v
+```
+
+分支结构：
+
+```text
+main          # 生产就绪代码，每次提交应可独立发布
+develop       # 集成分支，feature/fix/refactor 分支合入此处
+feature/*     # 新功能或文档规范补充
+fix/*         # 非紧急 bug 修复
+refactor/*    # 不改变行为的重构
+release/*     # 发布准备，只修发布阻塞问题
+hotfix/*      # 从 main 分出的紧急修复
+```
+
+分支命名使用 kebab-case：
+
+- `feature/<name>`，例如 `feature/ocr-batch-scan`。
+- `fix/<name>`，例如 `fix/zip-encoding-error`。
+- `refactor/<name>`，例如 `refactor/db-migration-v2`。
+- `release/<semver>`，例如 `release/1.2.0`。
+- `hotfix/<name>`，例如 `hotfix/crash-on-startup`。
+
+工作流约束：
+
+- 所有新工作从 `develop` 分出；如果当前在 `main`，先切到 `develop` 并同步后再建分支。
+- 功能、文档规范和常规改动使用 `feature/*`；普通缺陷修复使用 `fix/*`；纯重构使用 `refactor/*`。
+- 完成验证后，`feature/*`、`fix/*`、`refactor/*` 合回 `develop`。
+- `main` 只接受 `release/*` 或 `hotfix/*` 合入，禁止直接在 `main` 上提交。
+- `hotfix/*` 必须从 `main` 分出，修复后合回 `main` 和 `develop`。
+- 单人开发不强制 PR，但必须遵循分支命名、合并方向和验证要求。
+
+远程推送：
+
+- 推送到当前工作分支对应的远程同名分支，例如 `git push -u <remote> feature/<name>`。
+- 若仓库远程名不是 `origin`，以 `git remote -v` 的结果为准，不要硬编码远程名。
+- 不要未经用户明确要求执行 `--force`、`--force-with-lease`、删除远程分支或改写已推送历史。
+
+## 多 Agent 协作
+
+本仓库支持 OpenClaw + Codex + Claude Code 的多 agent 工作流。`CLAUDE.md` 是完整规则，本节是所有 AI 助手必须遵守的执行摘要。
+
+角色边界：
+
+- OpenClaw：需求入口、任务拆解、状态流转、分派、飞书通知、测试审查和合入 gate。
+- Codex：默认开发 agent，负责实现、验证、提交和推送。
+- Claude Code：备用/接力开发 agent，Codex 额度耗尽、阻塞或长时间无进展时接手。
+
+协作原则：
+
+- 不要让多个 agent 同时修改同一个工作区；使用独立 worktree 或独立 clone。
+- 不要用聊天上下文替代任务状态；任务必须记录在 `TODO-task.md`、OpenSpec change 或 GitHub Issue 中。
+- 同一任务同一时刻只能有一个 owner，推荐字段：`Owner: codex` 或 `Owner: claude`。
+- 接力必须记录 `Last agent`、`Last commit`、`Known blocker`，后续 agent 先读现有分支和失败日志。
+
+推荐任务状态：
+
+```text
+drafted -> ready -> assigned -> in_progress -> pushed -> reviewing -> ci_passed -> merged -> done
+```
+
+阻塞和接力使用：
+
+```text
+blocked
+handoff_requested
+```
+
+开发 agent 完成标准：
+
+- 推送前完成相关验证；至少执行 `git diff --check` 和与改动相关的 analyze/test。
+- 推送到远程同名分支后，把任务状态改为 `pushed`，并记录分支、提交和验证结果。
+- OpenClaw 审查通过和 CI 通过前，不要自行合入 `develop` 或 `main`。
+- 涉及数据库迁移、文件删除、权限、构建配置、发布配置或敏感信息时，必须等待人工确认后合入。
+
 ## 提交规范
 
 提交信息遵循：
