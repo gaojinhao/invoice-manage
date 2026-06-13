@@ -248,7 +248,63 @@ handoff_requested
 - OpenClaw 审查通过和 CI 通过前，不要自行合入 `develop` 或 `main`。
 - 涉及数据库迁移、文件删除、权限、构建配置、发布配置或敏感信息时，必须等待人工确认后合入。
 
+### 任务优先级与依赖
+
+每个任务增加 `Priority` 和 `Blocks` / `BlockedBy` 字段：
+
+```markdown
+## T123: <任务标题>
+
+Status: ready
+Owner: codex
+Priority: P0
+Branch: feature/T123-<kebab-name>
+Blocks: -
+BlockedBy: T120
+```
+
+优先级：P0（阻塞发布）、P1（当前迭代）、P2（后续迭代）、P3（backlog）。
+
+### 审查协议
+
+OpenClaw 审查检查项（按优先级）：
+
+1. **必须通过**：`flutter test` 全量，`dart analyze` 零错误
+2. **必须通过**：单次 commit ≤ 200 行，分支命名符合规范
+3. **必须通过**：无敏感信息（密码/token）硬编码
+4. **应当通过**：生成文件未被手工编辑
+5. **应当通过**：新增代码有对应测试
+6. **信息**：diff 可读性、命名一致性
+
+审查反馈写入任务，格式：
+```markdown
+### Review: T123
+- [x] CI passed
+- [x] Branch naming ok
+- [!] test/services/xxx_test.dart missing → Blocked
+```
+
+### 任务状态转换规则
+
+| 当前状态 | 触发事件 | 新状态 | 执行者 |
+|----------|----------|--------|--------|
+| `drafted` | 需求确认 | `ready` | OpenClaw |
+| `ready` | 分配 agent | `assigned` | OpenClaw |
+| `assigned` | 开始开发 | `in_progress` | Codex/Claude |
+| `in_progress` | 推送远程 | `pushed` | Codex/Claude |
+| `pushed` | 审查通过 | `ci_passed` | OpenClaw |
+| `ci_passed` | 合入 develop | `merged` | OpenClaw |
+| `merged` | 发布 | `done` | 人工 |
+| `in_progress` | 额度耗尽/阻塞 | `handoff_requested` | Codex/Claude |
+| `in_progress` | 发现阻塞 | `blocked` | 任意 |
+
 ## 提交规范
+
+提交信息遵循：
+
+```text
+<type>(<scope>): <subject>
+```
 
 提交信息遵循：
 
