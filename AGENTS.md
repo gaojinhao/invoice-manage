@@ -211,6 +211,43 @@ hotfix/*      # 从 main 分出的紧急修复
 - 若仓库远程名不是 `origin`，以 `git remote -v` 的结果为准，不要硬编码远程名。
 - 不要未经用户明确要求执行 `--force`、`--force-with-lease`、删除远程分支或改写已推送历史。
 
+## 多 Agent 协作
+
+本仓库支持 OpenClaw + Codex + Claude Code 的多 agent 工作流。`CLAUDE.md` 是完整规则，本节是所有 AI 助手必须遵守的执行摘要。
+
+角色边界：
+
+- OpenClaw：需求入口、任务拆解、状态流转、分派、飞书通知、测试审查和合入 gate。
+- Codex：默认开发 agent，负责实现、验证、提交和推送。
+- Claude Code：备用/接力开发 agent，Codex 额度耗尽、阻塞或长时间无进展时接手。
+
+协作原则：
+
+- 不要让多个 agent 同时修改同一个工作区；使用独立 worktree 或独立 clone。
+- 不要用聊天上下文替代任务状态；任务必须记录在 `TODO-task.md`、OpenSpec change 或 GitHub Issue 中。
+- 同一任务同一时刻只能有一个 owner，推荐字段：`Owner: codex` 或 `Owner: claude`。
+- 接力必须记录 `Last agent`、`Last commit`、`Known blocker`，后续 agent 先读现有分支和失败日志。
+
+推荐任务状态：
+
+```text
+drafted -> ready -> assigned -> in_progress -> pushed -> reviewing -> ci_passed -> merged -> done
+```
+
+阻塞和接力使用：
+
+```text
+blocked
+handoff_requested
+```
+
+开发 agent 完成标准：
+
+- 推送前完成相关验证；至少执行 `git diff --check` 和与改动相关的 analyze/test。
+- 推送到远程同名分支后，把任务状态改为 `pushed`，并记录分支、提交和验证结果。
+- OpenClaw 审查通过和 CI 通过前，不要自行合入 `develop` 或 `main`。
+- 涉及数据库迁移、文件删除、权限、构建配置、发布配置或敏感信息时，必须等待人工确认后合入。
+
 ## 提交规范
 
 提交信息遵循：
