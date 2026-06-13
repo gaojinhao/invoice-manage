@@ -155,3 +155,129 @@ Android 构建注意事项：
 - ML Kit 中文识别需在 app module 显式依赖 `com.google.mlkit:text-recognition-chinese:16.0.1`
 - `compileSdk = 36`（手动指定，高于 Flutter 默认值）
 - `file_picker` 使用 11.x（Kotlin-only），Gradle 有预编译 hook 处理 registrant 兼容
+
+## 测试策略
+
+- 服务层优先，使用 in-memory SQLite / 真实文件 I/O + 依赖注入，减少纯 mock 测试
+- 新建 service 必须同步创建 `test/services/<name>_test.dart`
+- 文件 I/O 测试：注入 `baseDirectory`，使用 `Directory.systemTemp.createTemp()`
+- 数据库测试：使用 `AppDatabase.test()`（`NativeDatabase.memory()`）
+- 纯逻辑方法：暴露为 `static` 并标注 `// Visible for testing`
+- 当前 229 tests，`flutter test` 全部通过
+
+常用测试命令：
+
+```bash
+# OCR 提取
+flutter test test/services/ocr_extraction_test.dart
+# 文件服务
+flutter test test/services/file_service_test.dart
+# 邮件
+flutter test test/services/email_service_test.dart test/services/email_server_config_test.dart
+# 匹配/打包
+flutter test test/services/invoice_matcher_service_test.dart test/services/check_pack_service_test.dart
+# 数据库
+flutter test test/database/app_database_test.dart
+```
+
+## 分支管理
+
+本项目采用类 GitFlow 分支模型，参考 Flutter、Kubernetes 等大型开源项目实践。
+
+### 分支结构
+
+```text
+main          ← 生产就绪代码，每次提交可独立发布
+  │
+  ├── develop ← 集成分支，feature/fix 分支合入此处
+  │     │
+  │     ├── feature/<name>   ← 新功能开发
+  │     ├── fix/<name>       ← Bug 修复（非紧急）
+  │     └── refactor/<name>  ← 重构（不改功能）
+  │
+  ├── release/<version> ← 发布准备（冻结特性，只修 bug）
+  │
+  └── hotfix/<name>     ← 紧急修复（从 main 分出，合回 main + develop）
+```
+
+### 分支命名
+
+| 类型 | 格式 | 示例 |
+|------|------|------|
+| 功能 | `feature/<kebab-case>` | `feature/ocr-batch-scan` |
+| 修复 | `fix/<kebab-case>` | `fix/zip-encoding-error` |
+| 重构 | `refactor/<kebab-case>` | `refactor/db-migration-v2` |
+| 发布 | `release/<semver>` | `release/1.2.0` |
+| 热修复 | `hotfix/<kebab-case>` | `hotfix/crash-on-startup` |
+
+### 工作流程
+
+```bash
+# 新功能：从 develop 分出，合回 develop
+git checkout develop && git pull
+git checkout -b feature/<name>
+# … 开发、测试 …
+git checkout develop && git merge --no-ff feature/<name>
+git push origin develop
+
+# 发布：从 develop 分出，合到 main 并打 tag，再合回 develop
+git checkout develop && git checkout -b release/1.0.0
+# … 修 bug、提升版本号 …
+git checkout main && git merge --no-ff release/1.0.0 && git tag v1.0.0
+git checkout develop && git merge --no-ff release/1.0.0
+git push origin main develop --tags
+
+# 紧急修复：从 main 分出，合回 main + develop
+git checkout main && git checkout -b hotfix/<name>
+# … 修复、测试 …
+git checkout main && git merge --no-ff hotfix/<name> && git tag v1.0.1
+git checkout develop && git merge --no-ff hotfix/<name>
+```
+
+### 当前简化
+
+单人开发不强制 PR，但**必须遵循分支命名和合并方向**：
+- 所有新工作从 `develop` 分出
+- 完成验证后合回 `develop`
+- `main` 只从 `release/*` 或 `hotfix/*` 合入
+- **禁止直接在 `main` 上提交**
+
+## 提交规范
+
+格式：
+
+```text
+<type>(<scope>): <subject>
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+类型：`feat` / `fix` / `docs` / `style` / `refactor` / `perf` / `test` / `chore` / `ci` / `build`
+
+**单次提交 diff ≤ 200 行**（插入 + 删除）。超过则按 task/行为/测试边界拆成多个提交。
+
+提交前检查：
+
+```bash
+git diff --cached --shortstat          # 确认 ≤ 200 行
+dart format <changed files>            # 格式化
+dart analyze <changed files>           # 静态分析（至少触碰文件通过）
+flutter test <relevant test files>     # 相关测试
+```
+
+## 修改边界
+
+- 保持 UI / Service / Data 三层分离，复杂业务逻辑放 `lib/services/`
+- **禁止手工编辑**：`*.g.dart`、`GeneratedPluginRegistrant.java`、`.flutter-plugins-dependencies`
+- **禁止提交**：构建产物、APK、数据库文件、大模型文件、临时文件
+- 敏感信息（密码、授权码）必须走 `flutter_secure_storage`，**禁止硬编码**
+- 新依赖需确认必要性，避免为单点修复引入重型包
+- 修改文件命名/目录结构时同步检查打包、删除、查看和测试
+
+## Git Worktree 隔离
+
+复杂任务可使用 worktree：
+
+```bash
+git worktree add -b feature/<name> ../app-invoice-<name> develop
+```
