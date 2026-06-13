@@ -166,6 +166,51 @@ adb logcat --pid=$(adb shell pidof com.example.invoice_app)
 - 涉及邮箱授权码、密码、IMAP/SMTP 配置时，继续使用 `flutter_secure_storage`，不要硬编码敏感信息。
 - 涉及文件路径时，注意当前代码保存的是绝对路径；`CODE_REVIEW.md` 中“存相对路径”是目标规范，不是当前实现事实。迁移前需要设计兼容方案。
 
+## 分支管理
+
+本项目采用类 GitFlow 分支模型。AI 助手开始改动前必须先确认当前分支和工作区状态：
+
+```bash
+git status --short --branch
+git branch --show-current
+git remote -v
+```
+
+分支结构：
+
+```text
+main          # 生产就绪代码，每次提交应可独立发布
+develop       # 集成分支，feature/fix/refactor 分支合入此处
+feature/*     # 新功能或文档规范补充
+fix/*         # 非紧急 bug 修复
+refactor/*    # 不改变行为的重构
+release/*     # 发布准备，只修发布阻塞问题
+hotfix/*      # 从 main 分出的紧急修复
+```
+
+分支命名使用 kebab-case：
+
+- `feature/<name>`，例如 `feature/ocr-batch-scan`。
+- `fix/<name>`，例如 `fix/zip-encoding-error`。
+- `refactor/<name>`，例如 `refactor/db-migration-v2`。
+- `release/<semver>`，例如 `release/1.2.0`。
+- `hotfix/<name>`，例如 `hotfix/crash-on-startup`。
+
+工作流约束：
+
+- 所有新工作从 `develop` 分出；如果当前在 `main`，先切到 `develop` 并同步后再建分支。
+- 功能、文档规范和常规改动使用 `feature/*`；普通缺陷修复使用 `fix/*`；纯重构使用 `refactor/*`。
+- 完成验证后，`feature/*`、`fix/*`、`refactor/*` 合回 `develop`。
+- `main` 只接受 `release/*` 或 `hotfix/*` 合入，禁止直接在 `main` 上提交。
+- `hotfix/*` 必须从 `main` 分出，修复后合回 `main` 和 `develop`。
+- 单人开发不强制 PR，但必须遵循分支命名、合并方向和验证要求。
+
+远程推送：
+
+- 推送到当前工作分支对应的远程同名分支，例如 `git push -u <remote> feature/<name>`。
+- 若仓库远程名不是 `origin`，以 `git remote -v` 的结果为准，不要硬编码远程名。
+- 不要未经用户明确要求执行 `--force`、`--force-with-lease`、删除远程分支或改写已推送历史。
+
 ## 提交规范
 
 提交信息遵循：
