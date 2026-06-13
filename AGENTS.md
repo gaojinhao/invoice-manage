@@ -1,6 +1,8 @@
 # AGENTS.md
 
-本文件是 Codex 在本仓库工作的项目说明。官方 Codex 会自动读取仓库内的 `AGENTS.md`，所以这里放长期有效的项目约定、运行命令和易踩坑。
+本文件适用于所有 AI 编程助手（Codex 等）在本仓库工作。
+
+> **Claude Code 用户**：另请参阅 [`CLAUDE.md`](./CLAUDE.md)，包含分支管理规范和 Claude Code 专属指引。
 
 ## 项目概览
 
