@@ -253,6 +253,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('v1.0.0'),
           ),
           const ListTile(
+            leading: Icon(Icons.person_outline),
+            title: Text('作者'),
+            subtitle: Text('Chinhau Gao'),
+          ),
+          const ListTile(
             leading: Icon(Icons.code),
             title: Text('技术栈'),
             subtitle: Text('Flutter · drift · Google ML Kit · WorkManager'),
