@@ -14,9 +14,17 @@ class PrintWordService {
 
   PrintWordService({this.pdfRenderService = const PdfRenderService()});
 
-  static const _contentWidthEmu = 6629400;
-  static const _paymentWidthEmu = 1657350;
-  static const _paymentHeightEmu = 3257550;
+  static const _emuPerTwip = 635;
+  static const _pageWidthTwips = 11906;
+  static const _pageHeightTwips = 16838;
+  static const _pageMarginTwips = 360;
+  static const _paymentsPerRow = 5;
+  static const _contentWidthEmu =
+      (_pageWidthTwips - _pageMarginTwips * 2) * _emuPerTwip;
+  static const _contentHeightEmu =
+      (_pageHeightTwips - _pageMarginTwips * 2) * _emuPerTwip;
+  static const _paymentWidthEmu = _contentWidthEmu ~/ _paymentsPerRow;
+  static const _paymentHeightEmu = _contentHeightEmu ~/ 4;
 
   Future<String?> createMonthPrintDoc({
     required int year,
@@ -103,9 +111,9 @@ class PrintWordService {
     }
 
     final payments = images.where((i) => i.kind == _ImageKind.payment).toList();
-    for (var row = 0; row < payments.length; row += 3) {
+    for (var row = 0; row < payments.length; row += _paymentsPerRow) {
       final drawings = <String>[];
-      for (final image in payments.skip(row).take(3)) {
+      for (final image in payments.skip(row).take(_paymentsPerRow)) {
         index++;
         final relId = 'rId$index';
         final mediaName = 'image$index.${_extension(image.path)}';
@@ -169,7 +177,7 @@ class PrintWordService {
       RegExp(r'\.(png|jpe?g)$', caseSensitive: false).hasMatch(path);
 
   String _paragraph(List<String> drawings) =>
-      '<w:p><w:r>${drawings.join('</w:r><w:r>')}</w:r></w:p>';
+      '<w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r>${drawings.join('</w:r><w:r>')}</w:r></w:p>';
   String _relationship(String id, String target) =>
       '<Relationship Id="$id" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/$target"/>';
   String _docRels(String rels) =>
@@ -179,7 +187,7 @@ class PrintWordService {
   String _contentTypes() =>
       '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
   String _document(String body) =>
-      '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>$body<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>';
+      '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>$body<w:sectPr><w:pgSz w:w="$_pageWidthTwips" w:h="$_pageHeightTwips"/><w:pgMar w:top="$_pageMarginTwips" w:right="$_pageMarginTwips" w:bottom="$_pageMarginTwips" w:left="$_pageMarginTwips"/></w:sectPr></w:body></w:document>';
   String _drawing(String relId, String name, int cx, int cy) =>
       '<w:drawing><wp:inline><wp:extent cx="$cx" cy="$cy"/><wp:docPr id="${relId.substring(3)}" name="$name"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="$name"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="$relId"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="$cx" cy="$cy"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
 }
