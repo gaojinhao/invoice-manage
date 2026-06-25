@@ -71,6 +71,43 @@ void main() {
         hasLength(1),
       );
     });
+
+    test('使用小页边距、左对齐和一排五张支付记录版式', () async {
+      final base = await Directory.systemTemp.createTemp(
+        'print_word_layout_test_',
+      );
+      addTearDown(() => base.delete(recursive: true));
+      final invoice = await _png(base, 'invoice.png');
+      final payment = await _png(base, 'payment.png');
+      final service = PrintWordService()..baseDirectory = () async => base;
+
+      final path = await service.createMonthPrintDoc(
+        year: 2026,
+        month: 6,
+        records: [
+          makeRecord(invoicePdf: invoice.path),
+          ...List.generate(5, (_) => makeRecord(paymentImg: payment.path)),
+        ],
+      );
+
+      final archive = ZipDecoder().decodeBytes(await File(path!).readAsBytes());
+      final document = utf8.decode(
+        archive.findFile('word/document.xml')!.content as List<int>,
+      );
+
+      expect(
+        document,
+        contains(
+          '<w:pgMar w:top="360" w:right="360" w:bottom="360" w:left="360"/>',
+        ),
+      );
+      expect(document, contains('<w:jc w:val="left"/>'));
+      expect(document, contains('cx="7103110" cy="7103110"'));
+      expect(
+        RegExp('<wp:extent cx="1420622" cy="2558732"/>').allMatches(document),
+        hasLength(5),
+      );
+    });
   });
 }
 
