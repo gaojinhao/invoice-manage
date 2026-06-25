@@ -242,6 +242,265 @@ git checkout develop && git merge --no-ff hotfix/<name>
 - `main` 只从 `release/*` 或 `hotfix/*` 合入
 - **禁止直接在 `main` 上提交**
 
+## 多 Agent 自动化工作流
+
+目标是让 OpenClaw 负责需求入口、调度、测试审查和通知，Codex 与 Claude Code 作为开发 worker。所有协作必须通过任务状态、Git 分支、远程推送和 CI 发生，**禁止多个 agent 同时修改同一个工作区**。
+
+### 角色分工
+
+| 角色 | 职责 |
+|------|------|
+| OpenClaw | 需求录入、任务拆解、状态流转、agent 分派、飞书通知、测试审查、合入 gate |
+| Codex | 默认开发 agent，负责读仓库、实现、测试、提交、推送 |
+| Claude Code | 备用/接力开发 agent，适合长上下文整理、复杂重构和文档同步 |
+| GitHub/远程仓库 | 分支隔离、PR/CI、可追踪审查边界 |
+
+### 任务状态机
+
+每个需求必须有唯一状态，推荐放在 `TODO-task.md` 或 GitHub Issue：
+
+```text
+drafted -> ready -> assigned -> in_progress -> pushed -> reviewing -> ci_passed -> merged -> done
+```
+
+接力或阻塞时使用：
+
+```text
+blocked
+handoff_requested
+```
+
+任务模板：
+
+```markdown
+## T123: <任务标题>
+
+Status: ready
+Owner: codex
+Branch: feature/T123-<kebab-name>
+
+Requirement:
+- ...
+
+Acceptance:
+- [ ] ...
+
+Handoff:
+- Last agent:
+- Last commit:
+- Known blocker:
+```
+
+### Agent 分派规则
+
+- 新任务默认分给 Codex：`Owner: codex`。
+- Codex 额度耗尽、连续失败或长时间无进展时，OpenClaw 将状态改为 `handoff_requested`，并把 `Owner` 改为 `claude`。
+- Claude Code 接力时必须先读取任务、分支、最近提交、测试失败日志和未完成事项，不得绕开现有方案重做。
+- 同一任务同一时刻只能有一个开发 owner。
+
+### 工作区隔离
+
+Codex 和 Claude Code 必须使用独立 worktree 或独立 clone：
+
+```bash
+git worktree add -b feature/T123-amount-check ../worktrees/codex/T123 develop
+git worktree add -b feature/T123-amount-check-claude ../worktrees/claude/T123 develop
+```
+
+同一任务接力时优先继续原分支；如必须新建接力分支，在任务 `Handoff` 中写清楚来源分支和最后提交。
+
+### 开发完成标准
+
+开发 agent 完成后必须：
+
+```bash
+git status --short
+git diff --check
+dart analyze <changed dart files>
+flutter test <relevant test files>
+git push -u <remote> <branch>
+```
+
+推送后将任务状态改为 `pushed`，并记录分支、提交和验证命令结果。
+
+### OpenClaw 审查与通知
+
+OpenClaw 监听远程分支或 PR 更新后：
+
+- 运行 CI 或本地测试审查。
+- 检查 diff 是否符合单次提交 ≤ 200 行、分支命名、生成文件和敏感信息规则。
+- 将阻塞问题写回任务或 PR 评论。
+- 通过飞书只通知关键状态变化：新需求、开始开发、接力、已推送、CI 失败、审查阻塞、CI 通过、已合入。
+
+### 合入策略
+
+- 常规小改动：CI 通过 + OpenClaw 无阻塞 review 后，可自动合入 `develop`。
+- 涉及数据库迁移、文件删除、权限、构建配置、发布配置、敏感信息的改动，必须人工确认后合入。
+- OpenClaw 不得直接合并未推送、未测试或未审查的本地改动。
+
+### Agent 环境要求
+
+开发机（Mac）需保持一致的运行环境。各 agent 共享：
+
+- Flutter SDK（稳定版，当前 3.44.1）
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@21`
+- `ANDROID_HOME` 指向 Android SDK
+- `adb` 可通过 `adb connect` 连到测试设备
+- `brew` 管理 JDK 版本
+
+每个 agent 的工作区 clone 或 worktree 需独立执行 `flutter pub get`。
+
+### Agent 能力矩阵
+
+| 能力 | Codex | Claude Code | 选择策略 |
+|------|-------|-------------|----------|
+| 快速迭代开发 | ★★★ | ★★☆ | 默认用 Codex |
+| 大规模重构 | ★★☆ | ★★★ | Codex 额度不足时用 Claude |
+| 文档系统整理 | ★★☆ | ★★★ | Claude |
+| OCR/算法调优 | ★★★ | ★★☆ | Codex |
+| Git 历史查询 | ★☆☆ | ★★★ | Claude |
+| 多文件跨层改动 | ★★☆ | ★★★ | Claude |
+| 额度消耗 | 低 | 较高 | 优先 Codex |
+
+### 冲突避免机制
+
+为防止两个 agent 同时操作同一分支，使用 Git 远程分支作为分布式锁：
+
+```bash
+# Agent 开始工作前，尝试创建远程锁分支
+git push origin feature/T123-lock 2>/dev/null
+# 如果 push 失败（已存在），说明另一个 agent 持有锁，等待或报告冲突
+
+# 工作完成后释放锁
+git push origin --delete feature/T123-lock
+```
+
+`TODO-task.md` 中的每个任务增加 `Lock: <branch>` 字段，OpenClaw 分配任务时检查锁状态。
+
+## 触发与通知机制
+
+### 事件驱动链
+
+```text
+OpenClaw (需求端)          Codex/Claude (开发端)         OpenClaw (审查端)
+     │                           │                           │
+     ├─ 写需求到 GitHub Issue ──→│                           │
+     │  或 TODO-task.md          │                           │
+     │                           │                           │
+     │                    [hook] ← GitHub Issue 创建/更新    │
+     │                    [hook] ← TODO-task.md 变更         │
+     │                           │                           │
+     │                    Codex/Claude 开始开发              │
+     │                    创建 feature 分支                 │
+     │                           │                           │
+     │                    push → remote                     │
+     │                           │                           │
+     │                           ├── [webhook/poll] ──→ OpenClaw 检测到推送
+     │                           │                     运行 CI 检查
+     │                           │                     飞书通知用户
+     │                           │                           │
+     │                           │              [审查通过] → 合入 develop
+     │                           │                           │
+     │                           │              [审查阻塞] → 写回 Issue
+```
+
+### 触发方式
+
+| 触发方 | 机制 | 说明 |
+|--------|------|------|
+| OpenClaw → 开发 agent | GitHub Issue + `TODO-task.md` | 结构化任务描述，含 Owner/Status/Branch |
+| 开发 agent → OpenClaw | `git push` + CI webhook | 推送后触发审查流水线 |
+| OpenClaw → 用户 | 飞书 Webhook | 关键状态变更通知 |
+
+### 飞书通知规则
+
+只通知以下关键节点（避免消息轰炸）：
+
+| 事件 | 通知 |
+|------|------|
+| 新需求录入 | ✅ |
+| Agent 开始开发 | ✅ |
+| 接力（handoff） | ✅ |
+| 推送待审查 | ✅ |
+| CI 失败 | ✅ |
+| 审查阻塞 | ✅ |
+| 已合入 develop | ✅ |
+| 日常进度 | ❌ 不通知 |
+
+### 例行调度
+
+```bash
+# OpenClaw 建议使用 CronCreate 每 5 分钟检查：
+# 1. 拉取远程分支列表，对比本地 TODO-task.md
+# 2. 有新分支/推送 → 触发审查
+# 3. 审查通过 → 合入 develop
+
+# 开发 agent 每 5 分钟检查：
+# 1. TODO-task.md 中有 ready 状态且 Owner 为自己的任务
+# 2. 有 → 创建 feature 分支并开始开发
+```
+
+## 发布管理
+
+### 版本号
+
+采用语义化版本 `MAJOR.MINOR.PATCH`：
+
+- MAJOR：破坏性变更（数据库 schema 变更、文件结构重组织）
+- MINOR：新功能（新页面、新服务、新导出格式）
+- PATCH：修复和文档（bug fix、typo、格式调整）
+
+当前版本：`0.1.0`（开发阶段）。
+
+### 发布流程
+
+```bash
+git checkout develop
+git checkout -b release/0.2.0
+# 仅修发布阻塞问题，提升版本号
+git checkout main
+git merge --no-ff release/0.2.0
+git tag v0.2.0
+git checkout develop
+git merge --no-ff release/0.2.0
+git push origin main develop --tags
+```
+
+### 发布前检查清单
+
+- [ ] `flutter test` 全量通过
+- [ ] `dart analyze` 零错误
+- [ ] APK debug 构建成功
+- [ ] 真机安装测试通过
+- [ ] `TODO-task.md` 标记为 released 的任务写出到 `CHANGELOG.md`
+- [ ] Git tag 已打
+
+## 回滚与恢复
+
+### 错误合入回滚
+
+```bash
+# 发现 develop 有错误提交时
+git checkout develop
+git revert <bad-commit> --no-edit
+git push origin develop
+```
+
+### 紧急回滚 main
+
+```bash
+git checkout main
+git revert <bad-commit> --no-edit
+git push origin main
+git checkout develop
+git merge main  # 同步 revert 到 develop
+```
+
+### CI 假阳性处理
+
+- 如果 CI 失败但在本地通过：记录到任务 `Known blocker`，人工确认后可 override
+- 如果 CI 因环境问题失败（网络超时等）：OpenClaw 重试最多 3 次，仍失败则通知用户
+
 ## 提交规范
 
 格式：
