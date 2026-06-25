@@ -20,7 +20,6 @@ Thumbs.db
 
 # Android
 android/.gradle/
-android/.kotlin/
 android/app/build/
 android/local.properties
 
