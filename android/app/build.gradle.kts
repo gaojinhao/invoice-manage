@@ -53,24 +53,6 @@ flutter {
     source = "../.."
 }
 
-// PATCH: file_picker 11.x is Kotlin-only. The generated registrant creates a Java
-// reference to its Kotlin class, but Java compiler can't resolve it. Remove the
-// file_picker block before Java compilation.
-tasks.matching { it.name.startsWith("compile") && it.name.contains("JavaWithJavac") }.configureEach {
-    doFirst {
-        val registrant = file("src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java")
-        if (registrant.exists()) {
-            var text = registrant.readText()
-            // Remove the file_picker try-catch block
-            text = text.replace(
-                Regex("try \\{[^}]*filepicker\\.FilePickerPlugin[^}]*\\} catch[^}]*\\{[^}]*\\}", RegexOption.DOT_MATCHES_ALL),
-                ""
-            )
-            registrant.writeText(text)
-        }
-    }
-}
-
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     // ML Kit 中文文字识别（插件声明为 compileOnly，需 App 显式添加）
